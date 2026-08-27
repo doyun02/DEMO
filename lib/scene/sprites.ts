@@ -176,119 +176,78 @@ export function tinyTextWidth(text: string): number {
   return Math.max(0, text.length * 4 - 1);
 }
 
-/** Silhouette profile: [y offset from the frame bottom, half-width]. */
-const HR_PROFILE: Array<[number, number]> = [
-  [-90, 15],
-  [-87, 21],
-  [-84, 25],
-  [-81, 27],
-  [-69, 28],
-  [-63, 27],
-  [-60, 24],
-  [-57, 20],
-  [-54, 16],
-  [-48, 15],
-  [-45, 27],
-  [-42, 36],
-  [-39, 45],
-  [-36, 53],
-  [-33, 60],
-  [-27, 68],
-  [-18, 77],
-  [-9, 84],
-  [0, 90],
-];
-
-/** Everything about the figure snaps to this grid, so the contour staircases
- *  like pixel art instead of drifting into a smooth curve. */
-const HR_STEP = 3;
-
-/** One knob for the judge's presence in frame. HR_PROFILE is authored at 1.0;
- *  this scales the whole figure — silhouette, rim light and details together. */
-const HR_SCALE = 0.66;
-
-/** Scale a profile-space length and snap it to the pixel grid. */
-const hs = (n: number) => Math.round(n * HR_SCALE);
-/** Same, but snapped to the contour's step grid so edges stay aligned. */
-const hsStep = (n: number) => Math.round((n * HR_SCALE) / HR_STEP) * HR_STEP;
-
-const HR_TOP = hsStep(HR_PROFILE[0][0]);
-
-/** Half-width of the figure at a scene-space y offset. */
-function hrHalfWidth(yOff: number): number {
-  const p = yOff / HR_SCALE; // back into profile space
-  // Clamp: above the crown the figure has no width yet, below the last entry it
-  // keeps the shoulder width. Without this, the crown row falls through to the
-  // widest value and draws a bar across the desk.
-  if (p <= HR_PROFILE[0][0]) return hsStep(HR_PROFILE[0][1]);
-  let raw = HR_PROFILE[HR_PROFILE.length - 1][1];
-  for (let i = 0; i < HR_PROFILE.length - 1; i++) {
-    const [y0, w0] = HR_PROFILE[i];
-    const [y1, w1] = HR_PROFILE[i + 1];
-    if (p >= y0 && p <= y1) {
-      const t = y1 === y0 ? 0 : (p - y0) / (y1 - y0);
-      raw = w0 + (w1 - w0) * t;
-      break;
-    }
-  }
-  return hsStep(raw);
-}
-
 /**
- * HR interviewer, seen from behind at the foreground desk — a near-black
- * silhouette with a hard rim light, which is what makes an over-the-shoulder
- * shot read at this scale. Warm rim from the desk lamp on the right, cool fill
- * from the candidate row on the left.
+ * HR interviewer, seen from behind at the foreground desk.
  *
- * The head stays below the candidate sprites, so the judge never hides a seat.
+ * Same rig as the candidates — same proportions, same one-pixel detail
+ * density, same palette generator — just scaled up and turned around, so the
+ * judge reads as one of the same cast sitting closer to the camera rather than
+ * as a different kind of drawing. Anchored below the candidate row, so it never
+ * occludes a seat.
  */
-export function drawHRBack(ctx: Ctx, cx: number, baseY: number, breath: number) {
+export function drawHRBack(
+  ctx: Ctx,
+  cx: number,
+  baseY: number,
+  p: CandidatePalette,
+  breath: number,
+) {
   const b = breath;
-  const body = "#080b14";
-  const bodyLift = "#0e1220";
+  const headTop = baseY - 76; // 140 at a 216-tall scene
 
-  // profile-space landmarks, scaled once
-  const neckTop = hs(-48);
-  const headBase = hs(-54);
-  const crown = hs(-84);
+  // ── chair, behind everything ───────────────────────────────────────
+  px(ctx, cx - 26, baseY - 38, 52, 38, "#161b30");
+  px(ctx, cx - 26, baseY - 38, 52, 2, "#242c4a");
+  px(ctx, cx - 28, baseY - 32, 2, 32, "#10142a");
+  px(ctx, cx + 26, baseY - 32, 2, 32, "#10142a");
 
-  // ── solid silhouette, in stepped bands ────────────────────────────
-  for (let yOff = HR_TOP; yOff <= 0; yOff += HR_STEP) {
-    const hw = hrHalfWidth(yOff);
-    const y = baseY + yOff + (yOff < neckTop ? b : 0);
-    const fill = yOff > hs(-48) && yOff < hs(-36) ? bodyLift : body;
-    px(ctx, cx - hw, y, hw * 2, HR_STEP, fill);
+  // ── torso ──────────────────────────────────────────────────────────
+  px(ctx, cx - 18, baseY - 45 + b, 36, 45, p.outfitShade);
+  px(ctx, cx - 16, baseY - 43 + b, 32, 43, p.outfit);
+  px(ctx, cx - 23, baseY - 40 + b, 5, 32, p.outfitShade); // left arm
+  px(ctx, cx + 18, baseY - 40 + b, 5, 32, p.outfitShade); // right arm
+  px(ctx, cx - 1, baseY - 41 + b, 2, 41, p.outfitShade); // centre seam
+  px(ctx, cx - 15, baseY - 45 + b, 30, 2, p.outfit); // shoulder line
+
+  // ── collar, the one bright note, matched to the candidates' rig ────
+  if (p.collar === 2) {
+    px(ctx, cx - 12, baseY - 48 + b, 24, 3, p.accent);
+  } else {
+    px(ctx, cx - 12, baseY - 48 + b, 24, 4, "#dfe3ee");
+    px(ctx, cx - 10, baseY - 45 + b, 20, 2, p.outfitShade);
   }
 
-  // chair, reading just past the shoulders
-  const shoulder = hrHalfWidth(0);
-  px(ctx, cx - shoulder - hs(12), baseY - hs(21), hs(12), hs(21), "#0c1019");
-  px(ctx, cx + shoulder, baseY - hs(21), hs(12), hs(21), "#0c1019");
-  px(ctx, cx - shoulder - hs(12), baseY - hs(21), hs(12), 2, "#222a44");
-  px(ctx, cx + shoulder, baseY - hs(21), hs(12), 2, "#4a3512");
+  // ── neck ───────────────────────────────────────────────────────────
+  px(ctx, cx - 6, baseY - 54, 12, 8, p.skinShade);
+  px(ctx, cx - 6, baseY - 50, 12, 2, "#2a2220");
 
-  // ── rim light along the contour ────────────────────────────────────
-  for (let yOff = HR_TOP; yOff <= -3; yOff += HR_STEP) {
-    const hw = hrHalfWidth(yOff);
-    const y = baseY + yOff + (yOff < neckTop ? b : 0);
-    const onHead = yOff > hs(-87) && yOff < headBase;
-    px(ctx, cx + hw - 2, y, 2, HR_STEP, onHead ? "#e0a63a" : yOff < hs(-87) ? "#c98a25" : "#8a5c17");
-    px(ctx, cx - hw, y, 2, HR_STEP, onHead ? "#3c4a72" : "#26314f");
+  // ── back of the head: all hair, no face ────────────────────────────
+  px(ctx, cx - 10, headTop + 4, 20, 22, p.hair);
+  px(ctx, cx - 8, headTop + 2, 16, 2, p.hair);
+  px(ctx, cx - 6, headTop, 12, 2, p.hairShade);
+  px(ctx, cx - 10, headTop + 22, 20, 3, p.hairShade); // nape
+  px(ctx, cx - 12, headTop + 12, 2, 5, p.skinShade); // ears
+  px(ctx, cx + 10, headTop + 12, 2, 5, p.skinShade);
+
+  // hair silhouette follows the same four styles the candidates use
+  if (p.hairStyle === 1) {
+    px(ctx, cx - 13, headTop + 8, 3, 22, p.hair);
+    px(ctx, cx + 10, headTop + 8, 3, 22, p.hair);
+  } else if (p.hairStyle === 2) {
+    px(ctx, cx - 14, headTop + 6, 4, 34, p.hair);
+    px(ctx, cx + 10, headTop + 6, 4, 34, p.hair);
+    px(ctx, cx - 14, headTop + 38, 4, 2, p.hairShade);
+    px(ctx, cx + 10, headTop + 38, 4, 2, p.hairShade);
+  } else if (p.hairStyle === 3) {
+    px(ctx, cx - 5, headTop - 6, 10, 8, p.hair);
+    px(ctx, cx - 3, headTop - 8, 6, 2, p.hairShade);
   }
 
-  // top cap, so the crown is outlined too
-  for (let yOff = HR_TOP; yOff <= crown; yOff += HR_STEP) {
-    const hw = hrHalfWidth(yOff);
-    const y = baseY + yOff + b;
-    px(ctx, cx - hw, y, hw * 2, HR_STEP, yOff < hs(-87) ? "#3a2f1c" : "#211b2a");
-    px(ctx, cx + hw - 2, y, 2, HR_STEP, "#c98a25");
-    px(ctx, cx - hw, y, 2, HR_STEP, "#2c3a5e");
-  }
-
-  // ── a few readable details inside the silhouette ───────────────────
-  px(ctx, cx - hs(26), baseY + hs(-53) + b, hs(52), 2, "#161a2c"); // hairline
-  px(ctx, cx - hs(20), baseY + hs(-45) + b, hs(40), 2, "#232b46"); // collar
-  px(ctx, cx - hs(13), baseY + hs(-51) + b, hs(26), hs(6), "#191d30"); // neck
-  px(ctx, cx + hs(4), baseY + hs(-40) + b, hs(26), 2, "#1a2036"); // shoulder seam
-  px(ctx, cx - hs(30), baseY + hs(-40) + b, hs(26), 2, "#141827");
+  // ── lighting: warm rim from the desk lamp, cool fill from the row ──
+  px(ctx, cx + 9, headTop + 4, 1, 20, "#c98a25");
+  px(ctx, cx + 7, headTop + 1, 3, 2, "#e0a63a");
+  px(ctx, cx + 16, baseY - 42 + b, 1, 34, "#a8701c");
+  px(ctx, cx + 22, baseY - 38 + b, 1, 26, "#8a5c17");
+  px(ctx, cx - 10, headTop + 5, 1, 18, "#3c4a72");
+  px(ctx, cx - 17, baseY - 42 + b, 1, 32, "#2c3a5e");
 }

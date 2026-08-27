@@ -1,4 +1,11 @@
-import { ROOM, SCENE_H, SCENE_W, WOOD, type CandidatePalette } from "./palette";
+import {
+  ROOM,
+  SCENE_H,
+  SCENE_W,
+  WOOD,
+  candidatePalette,
+  type CandidatePalette,
+} from "./palette";
 import {
   drawCandidate,
   drawEmptyChair,
@@ -24,6 +31,22 @@ export type SceneState = {
   reducedMotion: boolean;
   /** true while a screening run is in flight — the AI terminal works visibly. */
   aiBusy: boolean;
+};
+
+/**
+ * The judge uses the candidates' own palette type and rig, but a fixed, muted
+ * set rather than a seeded one: they sit closest to the lamp, so a bright
+ * palette here pulls the eye off the row that actually matters.
+ */
+const HR_PALETTE: CandidatePalette = {
+  ...candidatePalette("hr-interviewer"),
+  hair: "#2a1c14",
+  hairShade: "#170e0a",
+  outfit: "#3a3f52",
+  outfitShade: "#242838",
+  accent: "#8a5c17",
+  hairStyle: 0,
+  collar: 0,
 };
 
 /** Seat centres, evenly spread along the candidate panel desk. */
@@ -459,7 +482,7 @@ export function drawScene(ctx: Ctx, s: SceneState) {
   drawAITerminal(ctx, t, s.aiBusy, s.reducedMotion);
   drawCandidateRow(ctx, s);
   drawHRDesk(ctx, t, s.reducedMotion);
-  drawHRBack(ctx, 192, SCENE_H, s.reducedMotion ? 0 : Math.floor((t / 1300) % 2));
+  drawHRBack(ctx, 192, SCENE_H, HR_PALETTE, s.reducedMotion ? 0 : Math.floor((t / 1300) % 2));
   drawLampLight(ctx, t, s.reducedMotion);
   if (!s.reducedMotion) drawDust(ctx, t);
   if (s.selectedIndex !== null && s.seats[s.selectedIndex]) drawSpotlight(ctx, s.selectedIndex);

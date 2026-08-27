@@ -74,8 +74,8 @@ A screening run is append-only. Re-running never edits or deletes an earlier run
 
 - `palette.ts` — the fixed room palette, and per-candidate palettes seeded by a name hash
   (distinct hair, outfit, and accent; identical rig)
-- `sprites.ts` — the 32×32 candidate rig, the vacant chair, the 3×5 pixel font for VACANT
-  plates, and the foreground HR silhouette
+- `sprites.ts` — the 32×32 candidate rig, the same rig turned around and scaled up for the
+  foreground HR figure, the vacant chair, and a 3×5 pixel font for VACANT plates
 - `room.ts` — composition, lighting, the corkboard evidence board, and the ambient passes
 
 `prefers-reduced-motion: reduce` disables the animation loop entirely — the scene renders one
@@ -93,5 +93,6 @@ Records panel's JSON export is the way to keep one outside the browser.
   `Candidate` type already carries `sourceFileName` for it.
 - **A different model or effort level** — `MODEL` and `output_config.effort` in
   `app/api/analyze/route.ts`.
-- **The judge's presence in frame** — `HR_SCALE` in `lib/scene/sprites.ts` scales the
-  foreground HR silhouette as a whole; `HR_PROFILE` is authored at 1.0.
+- **The judge's look** — `HR_PALETTE` in `lib/scene/room.ts`. It is a `CandidatePalette`
+  like everyone else's, so the HR figure is drawn by the same rig at the same pixel
+  density; only the colours are pinned rather than seeded.
