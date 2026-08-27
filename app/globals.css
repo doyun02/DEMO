@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pixel-unit: 4px;
+}
+
+html,
+body {
+  background: #080a12;
+  color: #a8bce0;
+}
+
+body {
+  font-family: var(--font-term, "VT323"), "Courier New", monospace;
+  font-size: 18px;
+  -webkit-font-smoothing: none;
+  text-rendering: geometricPrecision;
+}
+
+canvas.pixel {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Chunky pixel frame — the app's core visual language.
+   Uses a stepped border built from box-shadows, no border-radius anywhere. */
+.pixel-frame {
+  position: relative;
+  background: #0d1020;
+  box-shadow:
+    0 0 0 2px #2a3454,
+    0 0 0 4px #080a12,
+    0 0 0 6px #1d2540;
+}
+
+.pixel-frame--warm {
+  box-shadow:
+    0 0 0 2px #8a5c17,
+    0 0 0 4px #080a12,
+    0 0 0 6px #2a3454;
+}
+
+.pixel-btn {
+  background: #1d2540;
+  box-shadow:
+    inset -2px -2px 0 0 #080a12,
+    inset 2px 2px 0 0 #2a3454;
+  transition: none;
+}
+.pixel-btn:hover {
+  background: #2a3454;
+}
+.pixel-btn:active {
+  box-shadow:
+    inset 2px 2px 0 0 #080a12,
+    inset -2px -2px 0 0 #2a3454;
+}
+.pixel-btn--primary {
+  background: #8a5c17;
+  color: #ffe9b8;
+  box-shadow:
+    inset -2px -2px 0 0 #4a2f08,
+    inset 2px 2px 0 0 #c98a25;
+}
+.pixel-btn--primary:hover {
+  background: #c98a25;
+}
+
+.pixel-input {
+  background: #080a12;
+  color: #d5e0f5;
+  box-shadow:
+    inset 2px 2px 0 0 #1d2540,
+    inset -2px -2px 0 0 #2a3454;
+  outline: none;
+}
+.pixel-input:focus-visible {
+  box-shadow:
+    inset 2px 2px 0 0 #1d2540,
+    inset -2px -2px 0 0 #2a3454,
+    0 0 0 2px #f2b544;
+}
+
+/* Focus states are deliberately loud — accessibility pass, stage 8. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid #f2b544;
+  outline-offset: 2px;
+}
+
+/* Scanline overlay for the CRT/terminal feel. */
+.scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.18) 3px,
+    rgba(0, 0, 0, 0.18) 4px
+  );
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #080a12;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3454;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

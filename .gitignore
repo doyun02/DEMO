@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+
+# env — never commit the Anthropic API key
+.env
+.env.local
+.env*.local
+
+*.tsbuildinfo
+next-env.d.ts
