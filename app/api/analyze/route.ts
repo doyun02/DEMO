@@ -4,7 +4,13 @@ import { erroredEvaluation } from "@/lib/screening";
 import type { AnalyzeRequestBody, AnalyzeResponseBody, Evaluation } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+/**
+ * One screening call, not the whole run — the client sends candidates one at a
+ * time. 60s is the ceiling on Vercel's Hobby plan; asking for more there fails
+ * the deployment rather than the request. Raise it on a paid plan if long
+ * resumes start timing out.
+ */
+export const maxDuration = 60;
 
 /**
  * The API key is read here, server-side, from the environment. It is never sent

@@ -45,6 +45,23 @@ ANTHROPIC_API_KEY=sk-ant-...
 Without a key the app still runs: screening returns a flagged record explaining that the key
 is missing, rather than crashing the run.
 
+## Deploying
+
+The repo is deploy-ready for Vercel with no config file — it detects Next.js and builds it.
+
+1. **vercel.com** → sign in with GitHub → **Add New… → Project** → import `doyun02/DEMO`
+2. Leave the framework preset (Next.js) and build settings alone
+3. **Environment Variables** → add `ANTHROPIC_API_KEY` with your key, for all environments.
+   This is the one step that matters: without it the site deploys and looks right, but every
+   screening comes back flagged with "ANTHROPIC_API_KEY is not set on the server."
+4. **Deploy**. You get a `*.vercel.app` URL.
+5. Set `SITE.url` in `lib/site.ts` to that URL (or to your domain once it points at Vercel),
+   commit, and push — otherwise the canonical tag advertises an address that does not resolve.
+
+Pushing to the repo's default branch redeploys automatically. `maxDuration` on the screening
+route is 60s, which is the Hobby plan ceiling; raise it in `app/api/analyze/route.ts` if you
+move to a paid plan and long resumes start timing out.
+
 ## Layout
 
 | Route | What it is |
