@@ -9,6 +9,23 @@ seated in the room.
 The human makes the final call. This app's job is to make sure a full, inspectable record
 survives every judgment, automatically — nobody is ever silently discarded.
 
+## Address
+
+Canonical production origin: **https://judgmenttrack.app**
+
+It lives in one place — `lib/site.ts` — and the canonical link, Open Graph tags,
+`robots.txt` and `sitemap.xml` all read from it. Point it somewhere else and everything
+follows:
+
+```ts
+export const SITE = { url: "https://judgmenttrack.app", ... }
+```
+
+Until the domain is registered and pointed at the host, deploy previews answer on the
+platform subdomain (e.g. `judgment-track.vercel.app`) — set `SITE.url` to whatever the
+live origin actually is, or search engines will be told to canonicalise to a domain that
+does not resolve yet.
+
 ## Running it
 
 ```bash
@@ -76,3 +93,5 @@ Records panel's JSON export is the way to keep one outside the browser.
   `Candidate` type already carries `sourceFileName` for it.
 - **A different model or effort level** — `MODEL` and `output_config.effort` in
   `app/api/analyze/route.ts`.
+- **The judge's presence in frame** — `HR_SCALE` in `lib/scene/sprites.ts` scales the
+  foreground HR silhouette as a whole; `HR_PROFILE` is authored at 1.0.

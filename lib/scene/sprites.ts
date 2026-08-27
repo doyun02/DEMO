@@ -203,18 +203,35 @@ const HR_PROFILE: Array<[number, number]> = [
  *  like pixel art instead of drifting into a smooth curve. */
 const HR_STEP = 3;
 
+/** One knob for the judge's presence in frame. HR_PROFILE is authored at 1.0;
+ *  this scales the whole figure — silhouette, rim light and details together. */
+const HR_SCALE = 0.66;
+
+/** Scale a profile-space length and snap it to the pixel grid. */
+const hs = (n: number) => Math.round(n * HR_SCALE);
+/** Same, but snapped to the contour's step grid so edges stay aligned. */
+const hsStep = (n: number) => Math.round((n * HR_SCALE) / HR_STEP) * HR_STEP;
+
+const HR_TOP = hsStep(HR_PROFILE[0][0]);
+
+/** Half-width of the figure at a scene-space y offset. */
 function hrHalfWidth(yOff: number): number {
+  const p = yOff / HR_SCALE; // back into profile space
+  // Clamp: above the crown the figure has no width yet, below the last entry it
+  // keeps the shoulder width. Without this, the crown row falls through to the
+  // widest value and draws a bar across the desk.
+  if (p <= HR_PROFILE[0][0]) return hsStep(HR_PROFILE[0][1]);
   let raw = HR_PROFILE[HR_PROFILE.length - 1][1];
   for (let i = 0; i < HR_PROFILE.length - 1; i++) {
     const [y0, w0] = HR_PROFILE[i];
     const [y1, w1] = HR_PROFILE[i + 1];
-    if (yOff >= y0 && yOff <= y1) {
-      const t = y1 === y0 ? 0 : (yOff - y0) / (y1 - y0);
+    if (p >= y0 && p <= y1) {
+      const t = y1 === y0 ? 0 : (p - y0) / (y1 - y0);
       raw = w0 + (w1 - w0) * t;
       break;
     }
   }
-  return Math.round(raw / HR_STEP) * HR_STEP;
+  return hsStep(raw);
 }
 
 /**
@@ -230,42 +247,48 @@ export function drawHRBack(ctx: Ctx, cx: number, baseY: number, breath: number) 
   const body = "#080b14";
   const bodyLift = "#0e1220";
 
+  // profile-space landmarks, scaled once
+  const neckTop = hs(-48);
+  const headBase = hs(-54);
+  const crown = hs(-84);
+
   // ── solid silhouette, in stepped bands ────────────────────────────
-  for (let yOff = -90; yOff <= 0; yOff += HR_STEP) {
+  for (let yOff = HR_TOP; yOff <= 0; yOff += HR_STEP) {
     const hw = hrHalfWidth(yOff);
-    const y = baseY + yOff + (yOff < -45 ? b : 0);
-    const fill = yOff > -48 && yOff < -36 ? bodyLift : body;
+    const y = baseY + yOff + (yOff < neckTop ? b : 0);
+    const fill = yOff > hs(-48) && yOff < hs(-36) ? bodyLift : body;
     px(ctx, cx - hw, y, hw * 2, HR_STEP, fill);
   }
 
   // chair, reading just past the shoulders
-  px(ctx, cx - 99, baseY - 21, 12, 21, "#0c1019");
-  px(ctx, cx + 87, baseY - 21, 12, 21, "#0c1019");
-  px(ctx, cx - 99, baseY - 21, 12, 2, "#222a44");
-  px(ctx, cx + 87, baseY - 21, 12, 2, "#4a3512");
+  const shoulder = hrHalfWidth(0);
+  px(ctx, cx - shoulder - hs(12), baseY - hs(21), hs(12), hs(21), "#0c1019");
+  px(ctx, cx + shoulder, baseY - hs(21), hs(12), hs(21), "#0c1019");
+  px(ctx, cx - shoulder - hs(12), baseY - hs(21), hs(12), 2, "#222a44");
+  px(ctx, cx + shoulder, baseY - hs(21), hs(12), 2, "#4a3512");
 
   // ── rim light along the contour ────────────────────────────────────
-  for (let yOff = -90; yOff <= -3; yOff += HR_STEP) {
+  for (let yOff = HR_TOP; yOff <= -3; yOff += HR_STEP) {
     const hw = hrHalfWidth(yOff);
-    const y = baseY + yOff + (yOff < -45 ? b : 0);
-    const onHead = yOff > -87 && yOff < -54;
-    px(ctx, cx + hw - 3, y, 3, HR_STEP, onHead ? "#e0a63a" : yOff < -87 ? "#c98a25" : "#8a5c17");
-    px(ctx, cx - hw, y, 3, HR_STEP, onHead ? "#3c4a72" : "#26314f");
+    const y = baseY + yOff + (yOff < neckTop ? b : 0);
+    const onHead = yOff > hs(-87) && yOff < headBase;
+    px(ctx, cx + hw - 2, y, 2, HR_STEP, onHead ? "#e0a63a" : yOff < hs(-87) ? "#c98a25" : "#8a5c17");
+    px(ctx, cx - hw, y, 2, HR_STEP, onHead ? "#3c4a72" : "#26314f");
   }
 
   // top cap, so the crown is outlined too
-  for (let yOff = -90; yOff <= -84; yOff += HR_STEP) {
+  for (let yOff = HR_TOP; yOff <= crown; yOff += HR_STEP) {
     const hw = hrHalfWidth(yOff);
     const y = baseY + yOff + b;
-    px(ctx, cx - hw, y, hw * 2, HR_STEP, yOff < -87 ? "#3a2f1c" : "#211b2a");
-    px(ctx, cx + hw - 3, y, 3, HR_STEP, "#c98a25");
-    px(ctx, cx - hw, y, 3, HR_STEP, "#2c3a5e");
+    px(ctx, cx - hw, y, hw * 2, HR_STEP, yOff < hs(-87) ? "#3a2f1c" : "#211b2a");
+    px(ctx, cx + hw - 2, y, 2, HR_STEP, "#c98a25");
+    px(ctx, cx - hw, y, 2, HR_STEP, "#2c3a5e");
   }
 
   // ── a few readable details inside the silhouette ───────────────────
-  px(ctx, cx - 26, baseY - 53 + b, 52, 3, "#161a2c"); // nape / hairline
-  px(ctx, cx - 20, baseY - 45 + b, 40, 2, "#232b46"); // collar
-  px(ctx, cx - 13, baseY - 51 + b, 26, 6, "#191d30"); // neck
-  px(ctx, cx + 4, baseY - 40 + b, 26, 2, "#1a2036"); // shoulder seam
-  px(ctx, cx - 30, baseY - 40 + b, 26, 2, "#141827");
+  px(ctx, cx - hs(26), baseY + hs(-53) + b, hs(52), 2, "#161a2c"); // hairline
+  px(ctx, cx - hs(20), baseY + hs(-45) + b, hs(40), 2, "#232b46"); // collar
+  px(ctx, cx - hs(13), baseY + hs(-51) + b, hs(26), hs(6), "#191d30"); // neck
+  px(ctx, cx + hs(4), baseY + hs(-40) + b, hs(26), 2, "#1a2036"); // shoulder seam
+  px(ctx, cx - hs(30), baseY + hs(-40) + b, hs(26), 2, "#141827");
 }
