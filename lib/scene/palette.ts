@@ -6,18 +6,23 @@ export const SCENE_W = 384;
 export const SCENE_H = 216;
 
 /** Fixed room palette — the dark tribunal set. */
+/**
+ * Morning. The room is lit by the window rather than by the desk lamp: walls
+ * lift toward a warm grey-blue, the floor warms up, and the deep near-black of
+ * the night version survives only in the shadows the light does not reach.
+ */
 export const ROOM = {
-  wallDark: "#111629",
-  wall: "#18203a",
-  wallLight: "#1e2846",
-  wallTrim: "#0c1020",
-  ceiling: "#0b0f1c",
-  floor: "#1a1526",
-  floorDark: "#120e1c",
-  rug: "#2a1a2e",
-  rugTrim: "#3a2440",
+  wallDark: "#2a3149",
+  wall: "#39415e",
+  wallLight: "#454e70",
+  wallTrim: "#232a40",
+  ceiling: "#1b2136",
+  floor: "#3a2f3e",
+  floorDark: "#2b222f",
+  rug: "#4a3348",
+  rugTrim: "#5c4059",
 
-  shadow: "#05070e",
+  shadow: "#161b2b",
 
   brass: "#f2b544",
   brassMid: "#c98a25",
@@ -31,10 +36,10 @@ export const ROOM = {
 
 /** Wood tones for the two desks. */
 export const WOOD = {
-  top: "#5a3f2a",
-  topLight: "#6f5036",
-  face: "#3d2a1c",
-  edge: "#251a12",
+  top: "#7a5738",
+  topLight: "#957048",
+  face: "#5a3f28",
+  edge: "#3a2718",
 } as const;
 
 export type CandidatePalette = {
@@ -82,16 +87,39 @@ const OUTFITS: Array<[string, string]> = [
 const ACCENTS = ["#f2b544", "#7f95c4", "#c25e5e", "#5fa887", "#b07fc4", "#d9d2c2"];
 
 /**
+ * Avalanche step. FNV's high bits are its weakest, and the palette used to read
+ * hair style, glasses and collar from shifts 22/26/28 of a single hash — which
+ * left one of the four hair silhouettes essentially unreachable and made a row
+ * of candidates look like siblings. Mixing first, then drawing each trait from
+ * its own derived value, gives every field an independent spread.
+ */
+function mix(h: number): number {
+  let x = h >>> 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+/**
  * Distinct look per candidate, same underlying rig — seeded by name so a
  * candidate always renders identically across sessions.
  */
 export function candidatePalette(seedSource: string): CandidatePalette {
-  const h = hashString(seedSource);
-  const pick = <T,>(arr: T[], shift: number): T => arr[(h >>> shift) % arr.length];
+  let cursor = hashString(seedSource);
+  /** Each call advances the stream, so no two traits share bits. */
+  const next = (): number => {
+    cursor = mix(cursor + 0x9e3779b9);
+    return cursor;
+  };
+  const pick = <T,>(arr: T[]): T => arr[next() % arr.length];
 
-  const [skin, skinShade] = pick(SKINS, 0);
-  const [hair, hairShade] = pick(HAIRS, 5);
-  const [outfit, outfitShade] = pick(OUTFITS, 11);
+  const [skin, skinShade] = pick(SKINS);
+  const [hair, hairShade] = pick(HAIRS);
+  const [outfit, outfitShade] = pick(OUTFITS);
+  const accent = pick(ACCENTS);
 
   return {
     skin,
@@ -100,9 +128,9 @@ export function candidatePalette(seedSource: string): CandidatePalette {
     hairShade,
     outfit,
     outfitShade,
-    accent: pick(ACCENTS, 17),
-    hairStyle: ((h >>> 22) % 4) as 0 | 1 | 2 | 3,
-    glasses: ((h >>> 26) & 1) === 1,
-    collar: ((h >>> 28) % 3) as 0 | 1 | 2,
+    accent,
+    hairStyle: (next() % 4) as 0 | 1 | 2 | 3,
+    glasses: next() % 100 < 35,
+    collar: (next() % 3) as 0 | 1 | 2,
   };
 }

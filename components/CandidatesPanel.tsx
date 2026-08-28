@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EmptyState, PixelButton, PixelPanel, Tag } from "./PixelUI";
 import { newId } from "@/lib/id";
-import { seatCandidates } from "@/lib/screening";
+import { erroredEvaluation, seatCandidates } from "@/lib/screening";
+import { computeOverall, standardHash } from "@/lib/scoring";
 import { useActiveDepartment, useApp } from "@/lib/store";
+import { DEFAULT_WEIGHTS } from "@/lib/types";
 import type {
   AnalyzeRequestBody,
   AnalyzeResponseBody,
@@ -36,12 +38,13 @@ export function CandidatesPanel() {
   }
 
   const queue = candidates.filter((c) => c.departmentId === dept.id);
+  const weights = dept.weights ?? DEFAULT_WEIGHTS;
 
   async function screenOne(candidate: Candidate): Promise<PendingResult> {
     const body: AnalyzeRequestBody = {
       candidate: { id: candidate.id, name: candidate.name, resumeText: candidate.resumeText },
-      priorityCriteria: dept!.priorityCriteria,
-      niceToHave: dept!.niceToHave,
+      requirements: dept!.requirements,
+      competencies: dept!.competencies,
     };
 
     const base = {
@@ -58,24 +61,29 @@ export function CandidatesPanel() {
         body: JSON.stringify(body),
       });
       const data = (await res.json()) as AnalyzeResponseBody;
-      // A failed screening still produces a record — nothing is silently dropped.
+      // The overall score is computed here from the competency scores, never
+      // taken from the model. A failed screening still produces a record —
+      // nothing is silently dropped.
       return data.ok
-        ? { ...base, ...data.evaluation }
-        : { ...base, ...data.evaluation, errored: true, errorMessage: data.error };
+        ? {
+            ...base,
+            ...data.evaluation,
+            score: computeOverall(data.evaluation.competencyResults, weights),
+          }
+        : {
+            ...base,
+            ...data.evaluation,
+            score: computeOverall(data.evaluation.competencyResults, weights),
+            errored: true,
+            errorMessage: data.error,
+          };
     } catch (e) {
       const message = e instanceof Error ? e.message : "network failure";
+      const evaluation = erroredEvaluation(dept!.requirements, dept!.competencies, message);
       return {
         ...base,
-        score: 0,
-        summary: `Screening could not be completed: ${message}`,
-        strengths: [],
-        concerns: ["The screening request never reached the server."],
-        priorityResults: dept!.priorityCriteria.map((c) => ({
-          label: c.label,
-          met: false,
-          reason: "Not evaluated — the request failed.",
-        })),
-        niceToHaveResults: dept!.niceToHave.map((c) => ({ label: c.label, met: false })),
+        ...evaluation,
+        score: computeOverall(evaluation.competencyResults),
         errored: true,
         errorMessage: message,
       };
@@ -100,13 +108,21 @@ export function CandidatesPanel() {
       departmentName: dept.name,
       ranAt: new Date().toISOString(),
       results: seatCandidates(raw),
+      // Freeze the standard into the run. Editing the department afterwards
+      // must not change what these candidates were held to.
+      appliedStandard: {
+        requirements: dept.requirements,
+        competencies: dept.competencies,
+        weights,
+        hash: standardHash(dept.requirements, dept.competencies, weights),
+      },
     };
     addRun(run);
     setScreening({ running: false });
-    router.push("/");
+    router.push("/room");
   }
 
-  const missingCriteria = dept.priorityCriteria.length === 0;
+  const missingStandard = dept.requirements.length === 0 && dept.competencies.length === 0;
 
   return (
     <div className="space-y-8">
@@ -161,20 +177,21 @@ export function CandidatesPanel() {
 
       <PixelPanel
         title={`Queue — ${queue.length} candidate${queue.length === 1 ? "" : "s"}`}
-        subtitle="Everyone here gets screened, scored, and recorded. Only the top 5 who clear every requirement get seated."
+        subtitle="Everyone here gets screened, scored, and recorded. Requirements decide who is eligible; the weighted competency score decides who gets one of the five chairs."
         actions={
           <PixelButton
             variant="primary"
             onClick={runScreening}
-            disabled={screening.running || queue.length === 0 || missingCriteria}
+            disabled={screening.running || queue.length === 0 || missingStandard}
           >
             {screening.running ? `Screening ${screening.done}/${screening.total}…` : "Run AI screening"}
           </PixelButton>
         }
       >
-        {missingCriteria && (
+        {missingStandard && (
           <p className="mb-4 border-2 border-verdict-fail p-3 text-verdict-fail">
-            This department has no required criteria. Add at least one before screening.
+            This department has no standard yet. Add a requirement or a competency before
+            screening.
           </p>
         )}
 
@@ -219,8 +236,8 @@ export function CandidatesPanel() {
       <PixelPanel title="Department">
         <div className="flex flex-wrap items-center gap-3">
           <Tag tone="seated">{dept.name}</Tag>
-          <Tag>{dept.priorityCriteria.length} required</Tag>
-          <Tag>{dept.niceToHave.length} nice-to-have</Tag>
+          <Tag>{dept.requirements.length} requirements</Tag>
+          <Tag>{dept.competencies.length} competencies</Tag>
         </div>
       </PixelPanel>
     </div>

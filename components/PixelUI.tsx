@@ -63,27 +63,57 @@ export function PixelButton({
   );
 }
 
+/**
+ * The overall score, 0-100, in ten pixel segments. The scale is the weighted
+ * mean the scorer computes — never a number the model handed us.
+ */
 export function ScoreBar({ score, seated }: { score: number; seated?: boolean }) {
+  const filled = Math.round(score / 10);
   return (
     <div className="flex items-center gap-3">
-      <div
-        className="flex gap-[2px]"
-        role="img"
-        aria-label={`Score ${score} out of 10`}
-      >
+      <div className="flex gap-[2px]" role="img" aria-label={`Score ${score} out of 100`}>
         {Array.from({ length: 10 }, (_, i) => (
           <span
             key={i}
             className="h-4 w-3"
             style={{
-              background:
-                i < score ? (seated ? "#f2b544" : "#7f95c4") : "#1d2540",
+              background: i < filled ? (seated ? "#f2b544" : "#7f95c4") : "#1d2540",
               boxShadow: "inset -1px -1px 0 0 rgba(0,0,0,0.5)",
             }}
           />
         ))}
       </div>
-      <span className="font-pixel text-[11px] text-brass-100">{score}/10</span>
+      <span className="font-pixel text-[11px] text-brass-100">{score}/100</span>
+    </div>
+  );
+}
+
+/** A single competency's 0-10 score, as a compact ten-cell strip. */
+export function CompetencyBar({
+  score,
+  reached,
+}: {
+  score: number;
+  reached: boolean;
+}) {
+  return (
+    <div
+      className="flex gap-[2px]"
+      role="img"
+      aria-label={reached ? `${score} out of 10` : "Not evidenced"}
+    >
+      {Array.from({ length: 10 }, (_, i) => (
+        <span
+          key={i}
+          className="h-3 w-2"
+          style={{
+            background: !reached ? "transparent" : i < score ? "#f2b544" : "#1d2540",
+            boxShadow: reached
+              ? "inset -1px -1px 0 0 rgba(0,0,0,0.5)"
+              : "inset 0 0 0 1px #2a3454",
+          }}
+        />
+      ))}
     </div>
   );
 }

@@ -6,9 +6,9 @@ import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
 
 const NAV = [
-  { href: "/", label: "Interview Room", hint: "the panel, as it stands" },
-  { href: "/criteria", label: "Priority Criteria", hint: "must pass, all of them" },
-  { href: "/nice-to-have", label: "Nice-to-Have", hint: "bonus, never disqualifying" },
+  { href: "/room", label: "Interview Room", hint: "the panel, as it stands" },
+  { href: "/criteria", label: "Requirements", hint: "must pass, all of them" },
+  { href: "/competencies", label: "Competencies", hint: "scored, weighted, ranks the room" },
   { href: "/candidates", label: "Candidates", hint: "intake + run screening" },
   { href: "/records", label: "Records", hint: "every judgment, kept" },
 ];
@@ -49,9 +49,9 @@ export function Drawer({ open, onClose }: { open: boolean; onClose: () => void }
       >
         <div className="flex items-center justify-between border-b-2 border-ink-600 p-4">
           <span className="font-pixel text-[10px] leading-relaxed text-brass-500">
-            JUDGMENT
+            HIRE
             <br />
-            TRACK
+            SCOPE
           </span>
           <button
             onClick={onClose}

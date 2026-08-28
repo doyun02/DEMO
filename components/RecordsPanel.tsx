@@ -19,6 +19,9 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 export function RecordsPanel() {
   const runs = useApp((s) => s.runs);
   const clearRuns = useApp((s) => s.clearRuns);
+  const invites = useApp((s) => s.invites);
+  const inviteToInterview = useApp((s) => s.inviteToInterview);
+  const withdrawInvite = useApp((s) => s.withdrawInvite);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<ScreeningResult | null>(null);
 
@@ -42,7 +45,7 @@ export function RecordsPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `judgment-track-records-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `hirescope-records-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -108,7 +111,9 @@ export function RecordsPanel() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <ScoreBar score={result.score} seated={result.seated} />
+                      <ScoreBar score={result.score.overall} seated={result.seated} />
+                      {run.sample && <Tag>Sample</Tag>}
+                      {run.interviewOf && <Tag tone="hold">After interview</Tag>}
                       {result.errored ? (
                         <Tag tone="fail">Flagged</Tag>
                       ) : result.seated ? (
@@ -121,6 +126,22 @@ export function RecordsPanel() {
                     </div>
                   </div>
                   <p className="mt-3 line-clamp-2 text-slate-300">{result.summary}</p>
+                  <p className="mt-2 text-slate-400">
+                    {result.score.counted}/{result.score.total} competencies scored
+                    {result.tags.length > 0 && (
+                      <>
+                        {" · "}
+                        {result.tags.filter((t) => t.status === "demonstrated").length} demonstrated,
+                        {" "}
+                        {result.tags.filter((t) => t.status === "claimed").length} claimed
+                      </>
+                    )}
+                    {run.appliedStandard && (
+                      <span className="ml-2 text-slate-500">
+                        standard {run.appliedStandard.hash}
+                      </span>
+                    )}
+                  </p>
                 </button>
               </li>
             ))}
@@ -130,10 +151,23 @@ export function RecordsPanel() {
         <p className="mt-6 border-t-2 border-ink-600 pt-4 text-slate-400">
           {rows.length} record{rows.length === 1 ? "" : "s"} shown · {runs.length} screening run
           {runs.length === 1 ? "" : "s"} kept · stored in this browser
+          {runs.some((r) => r.sample) &&
+            " · runs tagged Sample ship with the app as examples; they are not judgments the AI made"}
+        </p>
+        <p className="mt-2 text-slate-400">
+          Each run carries a frozen copy of the standard it applied, identified by the hash shown
+          on every row. Editing a department afterwards cannot change what a past candidate was
+          held to.
         </p>
       </PixelPanel>
 
-      <CaseFile result={open} onClose={() => setOpen(null)} />
+      <CaseFile
+        result={open}
+        invite={open ? invites[open.candidateId] : undefined}
+        onInvite={(r) => inviteToInterview(r.candidateId)}
+        onWithdrawInvite={(r) => withdrawInvite(r.candidateId)}
+        onClose={() => setOpen(null)}
+      />
     </>
   );
 }

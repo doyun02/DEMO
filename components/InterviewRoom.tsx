@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SCENE_H, SCENE_W, candidatePalette } from "@/lib/scene/palette";
-import { SEAT_XS, drawScene, seatRect, type SeatOccupant } from "@/lib/scene/room";
+import {
+  DOOR_X,
+  SEAT_XS,
+  drawScene,
+  seatRect,
+  type SceneActor,
+  type SeatOccupant,
+} from "@/lib/scene/room";
+import { planChoreography, poseAt, type Choreography } from "@/lib/scene/choreography";
 import { seatOrder } from "@/lib/screening";
 import { useApp } from "@/lib/store";
 import type { ScreeningResult } from "@/lib/types";
@@ -55,7 +63,7 @@ export function InterviewRoom({
           ? {
               candidateId: r.candidateId,
               name: r.candidateName,
-              score: r.score,
+              score: r.score.overall,
               palette: candidatePalette(r.candidateName + r.candidateId),
             }
           : null,
@@ -68,6 +76,99 @@ export function InterviewRoom({
     return i === -1 ? null : i;
   }, [seated, selectedCandidateId]);
 
+  // ── choreography ──────────────────────────────────────────────────
+  // Everyone on screen during a transition, including candidates on their way
+  // out who are no longer in `occupants` at all.
+  const castRef = useRef(new Map<string, SeatOccupant & object>());
+  const prevSeatingRef = useRef<Array<string | null> | null>(null);
+  const [choreo, setChoreo] = useState<{ plan: Choreography; startedAt: number } | null>(null);
+
+  useEffect(() => {
+    for (const occ of occupants) if (occ) castRef.current.set(occ.candidateId, occ);
+  }, [occupants]);
+
+  useEffect(() => {
+    const next = seated.map((r) => r?.candidateId ?? null);
+    const prev = prevSeatingRef.current;
+
+    // First paint of a populated room: let the panel file in through the door.
+    const from = prev ?? next.map(() => null);
+    prevSeatingRef.current = next;
+
+    if (reducedMotion) {
+      setChoreo(null);
+      return;
+    }
+    if (prev !== null && prev.join("|") === next.join("|")) return;
+
+    const plan = planChoreography(from, next, SEAT_XS, DOOR_X);
+    if (plan.duration === 0) {
+      setChoreo(null);
+      return;
+    }
+    setChoreo({ plan, startedAt: performance.now() });
+  }, [seated, reducedMotion]);
+
+  /** Sample the room at wall-clock time `now`. */
+  const sampleActors = useCallback(
+    (now: number): { actors: SceneActor[]; doorOpenness: number; done: boolean } => {
+      const settled = (): SceneActor[] =>
+        occupants.flatMap((occ, i) =>
+          occ
+            ? [
+                {
+                  key: occ.candidateId,
+                  palette: occ.palette,
+                  x: SEAT_XS[i],
+                  lift: 0,
+                  walking: false,
+                  selected: selectedIndex === i,
+                },
+              ]
+            : [],
+        );
+
+      if (!choreo) return { actors: settled(), doorOpenness: 0, done: true };
+
+      const t = now - choreo.startedAt;
+      if (t >= choreo.plan.duration) return { actors: settled(), doorOpenness: 0, done: true };
+
+      const actors: SceneActor[] = [];
+      let nearestToDoor = Infinity;
+
+      for (const move of choreo.plan.moves) {
+        const cast = castRef.current.get(move.candidateId);
+        if (!cast) continue;
+        const pose = poseAt(move, t, SEAT_XS, DOOR_X);
+        if (!pose.visible) {
+          // Off screen: either about to come in, or just gone out. Both hold the
+          // door open — but only briefly, or it never shuts again.
+          if (move.kind === "enter" && t > move.delay - 400) nearestToDoor = 0;
+          if (move.kind === "leave" && poseAt(move, t - 450, SEAT_XS, DOOR_X).visible) {
+            nearestToDoor = 0;
+          }
+          continue;
+        }
+        // Only somebody actually crossing the room holds the door; a candidate
+        // sitting in the nearest chair is not standing in the doorway.
+        if (pose.walking) nearestToDoor = Math.min(nearestToDoor, Math.abs(pose.x - DOOR_X));
+        actors.push({
+          key: cast.candidateId,
+          palette: cast.palette,
+          x: pose.x,
+          lift: pose.lift,
+          walking: pose.walking,
+          selected: cast.candidateId === selectedCandidateId,
+        });
+      }
+
+      // The door swings as somebody nears it and closes once the lane is clear.
+      const openness = nearestToDoor > 90 ? 0 : 1 - nearestToDoor / 90;
+      return { actors, doorOpenness: Math.max(0, Math.min(1, openness)), done: false };
+    },
+    [choreo, occupants, selectedIndex, selectedCandidateId],
+  );
+
   // ── render loop ───────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -78,13 +179,16 @@ export function InterviewRoom({
 
     let raf = 0;
     const paint = (t: number) => {
+      const { actors, doorOpenness } = sampleActors(performance.now());
       drawScene(ctx, {
         seats: occupants,
+        actors,
         selectedIndex,
         hoverIndex,
         timeMs: t,
         reducedMotion,
         aiBusy: running,
+        doorOpenness,
       });
       if (!reducedMotion) raf = requestAnimationFrame(paint);
     };
@@ -94,12 +198,13 @@ export function InterviewRoom({
     else raf = requestAnimationFrame(paint);
 
     return () => cancelAnimationFrame(raf);
-  }, [occupants, selectedIndex, hoverIndex, reducedMotion, running]);
+  }, [occupants, selectedIndex, hoverIndex, reducedMotion, running, sampleActors]);
 
+  const filled = seated.filter(Boolean).length;
   const statusLine = latestRun
-    ? `${seated.filter(Boolean).length}/${SEAT_COUNT} seated · ${latestRun.departmentName} · screened ${new Date(
-        latestRun.ranAt,
-      ).toLocaleString()}`
+    ? `${filled}/${SEAT_COUNT} seated · ${latestRun.departmentName} · ${
+        latestRun.sample ? "sample screening" : "screened"
+      } ${new Date(latestRun.ranAt).toLocaleString()}`
     : "0/5 seated · no screening run yet — open ☰ → Candidates to run one";
 
   return (
@@ -111,7 +216,7 @@ export function InterviewRoom({
           height={SCENE_H}
           className="pixel block w-full"
           role="img"
-          aria-label={`Interview room. ${seated.filter(Boolean).length} of ${SEAT_COUNT} seats filled.`}
+          aria-label={`Interview room. ${filled} of ${SEAT_COUNT} seats filled.`}
         />
 
         {/* One focusable hit area per seat — keyboard reaches the room, not just the mouse. */}
@@ -134,7 +239,7 @@ export function InterviewRoom({
                 onBlur={() => setHoverIndex((h) => (h === i ? null : h))}
                 aria-label={
                   occ
-                    ? `Seat ${i + 1}: ${occ.name}, scored ${occ.score} out of 10. Open case file.`
+                    ? `Seat ${i + 1}: ${occ.name}, scored ${occ.score} out of 100. Open case file.`
                     : `Seat ${i + 1}: vacant`
                 }
                 className="absolute disabled:cursor-default"
@@ -179,11 +284,10 @@ export function InterviewRoom({
       <ul className="sr-only">
         {occupants.map((occ, i) => (
           <li key={i}>
-            {occ ? `Seat ${i + 1}: ${occ.name}, ${occ.score} out of 10` : `Seat ${i + 1}: vacant`}
+            {occ ? `Seat ${i + 1}: ${occ.name}, ${occ.score} out of 100` : `Seat ${i + 1}: vacant`}
           </li>
         ))}
       </ul>
-      <span className="sr-only">{SEAT_XS.length} seats total.</span>
     </div>
   );
 }
