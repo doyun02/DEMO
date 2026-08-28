@@ -1,4 +1,4 @@
-# Judgment Track
+# HireScope
 
 A pixel-art AI recruiting screening room. An AI examines incoming resumes, scores each
 candidate out of 10, and only the top 5 who clear every one of HR's required criteria get
@@ -11,20 +11,19 @@ survives every judgment, automatically — nobody is ever silently discarded.
 
 ## Address
 
-Canonical production origin: **https://judgmenttrack.app**
+Canonical production origin: **https://demo1-alpha-mocha.vercel.app**
 
 It lives in one place — `lib/site.ts` — and the canonical link, Open Graph tags,
 `robots.txt` and `sitemap.xml` all read from it. Point it somewhere else and everything
 follows:
 
 ```ts
-export const SITE = { url: "https://judgmenttrack.app", ... }
+export const SITE = { url: "https://demo1-alpha-mocha.vercel.app", ... }
 ```
 
-Until the domain is registered and pointed at the host, deploy previews answer on the
-platform subdomain (e.g. `judgment-track.vercel.app`) — set `SITE.url` to whatever the
-live origin actually is, or search engines will be told to canonicalise to a domain that
-does not resolve yet.
+Set this to whatever the live origin actually is. A canonical tag naming an address that
+does not resolve is worse than no canonical tag at all, so change it in the same commit
+that points a custom domain at the host.
 
 ## Running it
 
@@ -140,7 +139,7 @@ static frame and redraws only when state changes.
 
 ## State
 
-Zustand with `localStorage` persistence (`judgment-track:v1`): criteria, departments, the
+Zustand with `localStorage` persistence (`hirescope:v1`): criteria, departments, the
 candidate queue, and every screening run. Clearing browser storage clears the record — the
 Records panel's JSON export is the way to keep one outside the browser.
 

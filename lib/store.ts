@@ -156,7 +156,7 @@ export const useApp = create<AppState>()(
       resetAll: () => set({ ...initial }),
     }),
     {
-      name: "judgment-track:v1",
+      name: "hirescope:v1",
       version: 2,
       storage: createJSONStorage(() => localStorage),
       // v2 reseeds: the sample set went from one department to three, with a

@@ -49,9 +49,9 @@ export function Drawer({ open, onClose }: { open: boolean; onClose: () => void }
       >
         <div className="flex items-center justify-between border-b-2 border-ink-600 p-4">
           <span className="font-pixel text-[10px] leading-relaxed text-brass-500">
-            JUDGMENT
+            HIRE
             <br />
-            TRACK
+            SCOPE
           </span>
           <button
             onClick={onClose}

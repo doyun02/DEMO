@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ☰
         </button>
         <span className="font-pixel text-[10px] tracking-wider text-brass-500">
-          JUDGMENT TRACK
+          HIRESCOPE
         </span>
       </header>
 
