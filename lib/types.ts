@@ -171,4 +171,10 @@ export type ScreeningRun = {
   /** True for the seeded demo runs that ship with the app, so a reader can
    *  always tell an example apart from a judgment the AI made. */
   sample?: boolean;
+  /**
+   * Set when this run is a re-seating produced by an interview rather than a
+   * screening pass. Runs stay append-only either way: an interview does not edit
+   * the run it came from, it adds the next one.
+   */
+  interviewOf?: { candidateId: string; candidateName: string };
 };

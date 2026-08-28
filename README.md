@@ -142,6 +142,50 @@ A screening run is append-only, and carries a frozen copy of the standard it app
 identified by a content hash. Editing a department afterwards cannot change what a past
 candidate was held to.
 
+## The interview
+
+A resume screen tells you what someone wrote about themselves. The interview is
+where that gets tested, and it runs **in the room** — the AI never speaks to the
+candidate.
+
+Open a seated candidate's case file and start an interview. The model proposes
+one question at a time; you ask it across the desk and type back what the
+candidate said. One model call per turn does both jobs — appraise the answer that
+just arrived, then decide what to ask next — which is how a human interviewer
+works and half the latency of doing them separately.
+
+What makes this app's version different from a cold interview: **the resume screen
+is the brief.** The interview already knows which competencies the resume never
+evidenced and which it scored on weak evidence, and it chases those first. No
+separate planning call.
+
+Coverage is counted in code, not by the model — `lib/interview/coverage.ts` tells
+it how many questions it has asked and what each competency still needs, and the
+budget scales to the number of competencies (high priority gets two questions,
+the rest one, clamped to 6-14).
+
+Finishing rescores the candidate. Where the interview reached a competency, its
+score **replaces** the resume's rather than averaging with it: a resume is an
+assertion and an interview is direct evidence, and averaging would let a
+well-written resume prop up a weak interview. Where it did not reach one, the
+resume's score stands.
+
+That produces a **new run**, not an edit — the run it came from is untouched, so
+the record of how the ranking changed survives. The room re-seats itself against
+the new scores, which is when a candidate stands up and changes chairs, or walks
+out the door.
+
+Notes worth keeping in mind:
+
+- The transcript is the interviewer's notes, not the candidate's words. Every
+  prompt says so, and evidence quotes are quotes of what someone wrote down.
+- Nothing is recorded until you finish. Leaving mid-interview discards it.
+- Not carried across from the upstream project, because they assume a candidate
+  typing into the app: consent flows, the abandonment-and-deletion rule, and the
+  integrity signals (focus loss, paste events, answer timing, stylometry). If this
+  ever grows a candidate-facing side, those come back with it — they are not
+  optional there.
+
 ## Where this came from
 
 The assessment model is adapted from **[jaewoo001/hirescope](https://github.com/jaewoo001/hirescope)**,
@@ -162,10 +206,15 @@ from it, deliberately:
   `criteria/*.md` by `scripts/import-criteria.py`. Twenty roles, 163 competencies, parsed
   rather than paraphrased so the wording is theirs.
 
+- **The adaptive interview loop** — one call per turn doing appraisal and question
+  selection together, coverage counted in code, and the 0-4 per-answer scale feeding a
+  0-10 per-competency assessment at the end rather than being summed.
+
 Changed on the way across: their system has no hard gate — everything is weighted and
-nothing disqualifies. This app needs one, so requirements sit in front of the score. Not
-taken: the adaptive interview, homework, embeddings search, and the integrity signals, all
-of which assume a candidate typing into the app and a database behind it.
+nothing disqualifies. This app needs one, so requirements sit in front of the score. And
+their interview is candidate-facing; this one is run by the interviewer, from their side
+of the desk. Not taken: homework, embeddings search, and the integrity signals, all of
+which assume a candidate typing into the app and a database behind it.
 
 ## The scene
 

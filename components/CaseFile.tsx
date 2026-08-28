@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CompetencyBar, ScoreBar, Tag } from "./PixelUI";
+import { CompetencyBar, PixelButton, ScoreBar, Tag } from "./PixelUI";
 import { SkillRadar } from "./SkillRadar";
 import { explainOverall, weightFor } from "@/lib/scoring";
 import type { ScreeningResult } from "@/lib/types";
@@ -13,9 +13,14 @@ import type { ScreeningResult } from "@/lib/types";
 export function CaseFile({
   result,
   onClose,
+  onStartInterview,
+  interviewed,
 }: {
   result: ScreeningResult | null;
   onClose: () => void;
+  /** Omitted where an interview makes no sense — a Records row, say. */
+  onStartInterview?: (result: ScreeningResult) => void;
+  interviewed?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -65,6 +70,19 @@ export function CaseFile({
             ✕
           </button>
         </div>
+
+        {onStartInterview && (
+          <div className="mb-5 flex flex-wrap items-center gap-3 border-2 border-brass-700 p-3">
+            <PixelButton variant="primary" onClick={() => onStartInterview(result)}>
+              {interviewed ? "Interview again" : "Interview in the room"}
+            </PixelButton>
+            <p className="min-w-0 flex-1 text-slate-400">
+              {interviewed
+                ? "This candidate has already been interviewed. Their scores below carry that evidence."
+                : "The AI proposes each question; you ask it and type back what they said. Finishing rescores them and re-seats the room."}
+            </p>
+          </div>
+        )}
 
         {/* Score and verdict, with the arithmetic stated rather than implied. */}
         <div className="mb-6 grid gap-5 sm:grid-cols-[1fr_220px]">

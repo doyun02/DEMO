@@ -3,7 +3,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { newId } from "./id";
+import { mergeInterviewScores, questionBudget } from "./interview/coverage";
+import type { Interview, InterviewTurn, TurnAppraisal } from "./interview/types";
 import { ROLE_LIBRARY } from "./sample/roleLibrary";
+import { computeOverall } from "./scoring";
+import { seatCandidates } from "./screening";
 import { SAMPLE_CANDIDATES, SAMPLE_DEPARTMENTS, SAMPLE_RUNS } from "./sampleData";
 import type {
   Candidate,
@@ -20,6 +24,8 @@ type AppState = {
   activeDepartmentId: string;
   candidates: Candidate[];
   runs: ScreeningRun[];
+  /** In-room interviews, keyed by candidate. One per candidate at a time. */
+  interviews: Record<string, Interview>;
   selectedCandidateId: string | null;
   screening: { running: boolean; done: number; total: number; error?: string };
 
@@ -50,6 +56,13 @@ type AppState = {
   addRun: (run: ScreeningRun) => void;
   clearRuns: () => void;
 
+  startInterview: (candidateId: string) => void;
+  appendInterviewTurn: (candidateId: string, turn: InterviewTurn) => void;
+  recordAppraisal: (candidateId: string, appraisal: TurnAppraisal) => void;
+  /** Fold a finished interview into a new run, re-seating the room. */
+  applyInterview: (candidateId: string, outcome: NonNullable<Interview["outcome"]>) => void;
+  abandonInterview: (candidateId: string) => void;
+
   resetAll: () => void;
 };
 
@@ -58,6 +71,7 @@ const initial = {
   activeDepartmentId: SAMPLE_DEPARTMENTS[0].id,
   candidates: SAMPLE_CANDIDATES,
   runs: SAMPLE_RUNS as ScreeningRun[],
+  interviews: {} as Record<string, Interview>,
   selectedCandidateId: null as string | null,
   screening: { running: false, done: 0, total: 0 },
 };
@@ -225,7 +239,117 @@ export const useApp = create<AppState>()(
 
       addRun: (run) => set((s) => ({ runs: [run, ...s.runs] })),
 
-      clearRuns: () => set({ runs: [], selectedCandidateId: null }),
+      clearRuns: () => set({ runs: [], interviews: {}, selectedCandidateId: null }),
+
+      startInterview: (candidateId) =>
+        set((s) => {
+          const run = s.runs.find((r) => r.results.some((x) => x.candidateId === candidateId));
+          const result = run?.results.find((x) => x.candidateId === candidateId);
+          const dept = s.departments.find((d) => d.id === result?.departmentId);
+          if (!run || !result || !dept) return {};
+          return {
+            interviews: {
+              ...s.interviews,
+              [candidateId]: {
+                candidateId,
+                candidateName: result.candidateName,
+                departmentId: dept.id,
+                runId: run.id,
+                startedAt: new Date().toISOString(),
+                status: "in_progress",
+                budget: questionBudget(dept.competencies),
+                turns: [],
+                appraisals: [],
+              },
+            },
+          };
+        }),
+
+      appendInterviewTurn: (candidateId, turn) =>
+        set((s) => {
+          const interview = s.interviews[candidateId];
+          if (!interview) return {};
+          return {
+            interviews: {
+              ...s.interviews,
+              [candidateId]: { ...interview, turns: [...interview.turns, turn] },
+            },
+          };
+        }),
+
+      recordAppraisal: (candidateId, appraisal) =>
+        set((s) => {
+          const interview = s.interviews[candidateId];
+          if (!interview) return {};
+          return {
+            interviews: {
+              ...s.interviews,
+              [candidateId]: {
+                ...interview,
+                appraisals: [...interview.appraisals, appraisal],
+              },
+            },
+          };
+        }),
+
+      /**
+       * Finishing an interview does not edit the run it came from. It appends a
+       * new one, with this candidate's competencies rescored from the interview
+       * and the whole room re-seated — so the ranking can change, the record of
+       * how it changed survives, and the room animates the difference.
+       */
+      applyInterview: (candidateId, outcome) =>
+        set((s) => {
+          const interview = s.interviews[candidateId];
+          const source = s.runs.find((r) => r.id === interview?.runId);
+          if (!interview || !source) return {};
+
+          const rescored = source.results.map((result) => {
+            if (result.candidateId !== candidateId) return result;
+            const competencyResults = mergeInterviewScores(
+              result.competencyResults,
+              outcome.competencyResults,
+            );
+            return {
+              ...result,
+              competencyResults,
+              score: computeOverall(competencyResults),
+              summary: outcome.summary,
+              strengths: outcome.strengths,
+              concerns: outcome.concerns,
+            };
+          });
+
+          const run: ScreeningRun = {
+            id: newId("run"),
+            departmentId: source.departmentId,
+            departmentName: source.departmentName,
+            ranAt: new Date().toISOString(),
+            results: seatCandidates(rescored),
+            appliedStandard: source.appliedStandard,
+            interviewOf: { candidateId, candidateName: interview.candidateName },
+          };
+
+          return {
+            runs: [run, ...s.runs],
+            interviews: {
+              ...s.interviews,
+              [candidateId]: {
+                ...interview,
+                status: "finished",
+                finishedAt: new Date().toISOString(),
+                outcome,
+              },
+            },
+          };
+        }),
+
+      abandonInterview: (candidateId) =>
+        set((s) => {
+          const next = { ...s.interviews };
+          delete next[candidateId];
+          return { interviews: next };
+        }),
 
       resetAll: () => set({ ...initial }),
     }),
@@ -242,6 +366,7 @@ export const useApp = create<AppState>()(
         activeDepartmentId: s.activeDepartmentId,
         candidates: s.candidates,
         runs: s.runs,
+        interviews: s.interviews,
       }),
     },
   ),

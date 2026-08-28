@@ -110,6 +110,7 @@ export function RecordsPanel() {
                     <div className="flex flex-wrap items-center gap-3">
                       <ScoreBar score={result.score.overall} seated={result.seated} />
                       {run.sample && <Tag>Sample</Tag>}
+                      {run.interviewOf && <Tag tone="hold">After interview</Tag>}
                       {result.errored ? (
                         <Tag tone="fail">Flagged</Tag>
                       ) : result.seated ? (
