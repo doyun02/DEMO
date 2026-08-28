@@ -6,7 +6,7 @@ import { newId } from "./id";
 import { mergeInterviewScores, questionBudget } from "./interview/coverage";
 import type { Interview, InterviewTurn, TurnAppraisal } from "./interview/types";
 import { ROLE_LIBRARY } from "./sample/roleLibrary";
-import { computeOverall } from "./scoring";
+import { clampWeight, computeOverall } from "./scoring";
 import { seatCandidates } from "./screening";
 import { SAMPLE_CANDIDATES, SAMPLE_DEPARTMENTS, SAMPLE_RUNS } from "./sampleData";
 import type {
@@ -15,6 +15,7 @@ import type {
   Department,
   Priority,
   Requirement,
+  PriorityWeights,
   RoleTemplate,
   ScreeningRun,
 } from "./types";
@@ -26,6 +27,23 @@ type AppState = {
   runs: ScreeningRun[];
   /** In-room interviews, keyed by candidate. One per candidate at a time. */
   interviews: Record<string, Interview>;
+  /**
+   * Who this browser is, on the applicant side. Set when a resume is submitted.
+   * HR and applicant are separate people on separate devices in real use; with
+   * no server between them this is the demo's stand-in for that — one browser
+   * holds both sides, and the applicant view reads the same store the HR view
+   * writes to.
+   */
+  applicantId: string | null;
+  /**
+   * The interview handshake. HR invites, the applicant consents, and only then
+   * does either side see a question. Consent is recorded with a timestamp
+   * because "they agreed" is a claim somebody may have to stand behind later.
+   */
+  invites: Record<
+    string,
+    { invitedAt: string; consentedAt?: string; declinedAt?: string }
+  >;
   selectedCandidateId: string | null;
   screening: { running: boolean; done: number; total: number; error?: string };
 
@@ -42,6 +60,7 @@ type AppState = {
   addCompetency: (departmentId: string, label: string) => void;
   updateCompetency: (departmentId: string, id: string, patch: Partial<Competency>) => void;
   removeCompetency: (departmentId: string, id: string) => void;
+  setWeights: (departmentId: string, weights: PriorityWeights) => void;
 
   addCandidate: (input: {
     name: string;
@@ -63,6 +82,16 @@ type AppState = {
   applyInterview: (candidateId: string, outcome: NonNullable<Interview["outcome"]>) => void;
   abandonInterview: (candidateId: string) => void;
 
+  registerApplicant: (input: {
+    name: string;
+    departmentId: string;
+    resumeText: string;
+  }) => string;
+  signOutApplicant: () => void;
+  inviteToInterview: (candidateId: string) => void;
+  withdrawInvite: (candidateId: string) => void;
+  respondToInvite: (candidateId: string, consented: boolean) => void;
+
   resetAll: () => void;
 };
 
@@ -72,6 +101,8 @@ const initial = {
   candidates: SAMPLE_CANDIDATES,
   runs: SAMPLE_RUNS as ScreeningRun[],
   interviews: {} as Record<string, Interview>,
+  applicantId: null as string | null,
+  invites: {} as Record<string, { invitedAt: string; consentedAt?: string; declinedAt?: string }>,
   selectedCandidateId: null as string | null,
   screening: { running: false, done: 0, total: 0 },
 };
@@ -215,6 +246,22 @@ export const useApp = create<AppState>()(
           ),
         })),
 
+      setWeights: (departmentId, weights) =>
+        set((s) => ({
+          departments: s.departments.map((d) =>
+            d.id === departmentId
+              ? {
+                  ...d,
+                  weights: {
+                    high: clampWeight(weights.high),
+                    medium: clampWeight(weights.medium),
+                    low: clampWeight(weights.low),
+                  },
+                }
+              : d,
+          ),
+        })),
+
       addCandidate: (input) => {
         const candidate: Candidate = {
           id: newId("cand"),
@@ -344,6 +391,54 @@ export const useApp = create<AppState>()(
           };
         }),
 
+      /** Create the candidate this browser is applying as, and return their id. */
+      registerApplicant: (input) => {
+        const candidate: Candidate = {
+          id: newId("cand"),
+          name: input.name.trim() || "Unnamed applicant",
+          departmentId: input.departmentId,
+          resumeText: input.resumeText,
+          submittedAt: new Date().toISOString(),
+        };
+        set((s) => ({
+          candidates: [...s.candidates, candidate],
+          applicantId: candidate.id,
+        }));
+        return candidate.id;
+      },
+
+      signOutApplicant: () => set({ applicantId: null }),
+
+      inviteToInterview: (candidateId) =>
+        set((s) => ({
+          invites: {
+            ...s.invites,
+            [candidateId]: { invitedAt: new Date().toISOString() },
+          },
+        })),
+
+      withdrawInvite: (candidateId) =>
+        set((s) => {
+          const next = { ...s.invites };
+          delete next[candidateId];
+          return { invites: next };
+        }),
+
+      respondToInvite: (candidateId, consented) =>
+        set((s) => {
+          const invite = s.invites[candidateId];
+          if (!invite) return {};
+          const at = new Date().toISOString();
+          return {
+            invites: {
+              ...s.invites,
+              [candidateId]: consented
+                ? { ...invite, consentedAt: at, declinedAt: undefined }
+                : { ...invite, declinedAt: at, consentedAt: undefined },
+            },
+          };
+        }),
+
       abandonInterview: (candidateId) =>
         set((s) => {
           const next = { ...s.interviews };
@@ -367,10 +462,28 @@ export const useApp = create<AppState>()(
         candidates: s.candidates,
         runs: s.runs,
         interviews: s.interviews,
+        applicantId: s.applicantId,
+        invites: s.invites,
       }),
     },
   ),
 );
+
+/**
+ * Cross-tab sync.
+ *
+ * HR and applicant are two people on two devices in real use. With no server
+ * between them, the closest this demo can get is two tabs of one browser — which
+ * only works if a write in one tab reaches the other. localStorage fires
+ * `storage` in every *other* tab, so rehydrating there keeps the two views on
+ * the same state. It is not a substitute for a backend: nothing here crosses
+ * machines, and two tabs writing at once still race.
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === "hirescope:v1") void useApp.persist.rehydrate();
+  });
+}
 
 /** Convenience selectors. */
 export function useActiveDepartment(): Department | undefined {

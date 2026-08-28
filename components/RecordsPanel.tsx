@@ -19,6 +19,9 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 export function RecordsPanel() {
   const runs = useApp((s) => s.runs);
   const clearRuns = useApp((s) => s.clearRuns);
+  const invites = useApp((s) => s.invites);
+  const inviteToInterview = useApp((s) => s.inviteToInterview);
+  const withdrawInvite = useApp((s) => s.withdrawInvite);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<ScreeningResult | null>(null);
 
@@ -158,7 +161,13 @@ export function RecordsPanel() {
         </p>
       </PixelPanel>
 
-      <CaseFile result={open} onClose={() => setOpen(null)} />
+      <CaseFile
+        result={open}
+        invite={open ? invites[open.candidateId] : undefined}
+        onInvite={(r) => inviteToInterview(r.candidateId)}
+        onWithdrawInvite={(r) => withdrawInvite(r.candidateId)}
+        onClose={() => setOpen(null)}
+      />
     </>
   );
 }

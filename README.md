@@ -61,15 +61,44 @@ Pushing to the repo's default branch redeploys automatically. `maxDuration` on t
 route is 60s, which is the Hobby plan ceiling; raise it in `app/api/analyze/route.ts` if you
 move to a paid plan and long resumes start timing out.
 
-## Layout
+## Two ways in
 
-| Route | What it is |
-| --- | --- |
-| `/` | The interview room — the pixel scene, a status strip, and the ☰ menu. Nothing else. |
-| `/criteria` | Requirements, the role library, and department management |
-| `/competencies` | What gets scored, and the standard each score is measured against |
-| `/candidates` | Resume intake, the queue, and the "Run AI screening" action |
-| `/records` | The full audit trail, with a JSON export |
+The front page asks which side you are on, because they are not the same product.
+
+**Applicant** — `/apply`. Name, role, resume, and a consent checkbox. Submitting runs the
+screening on the spot; the applicant then sits in `/apply/room`, across the desk from the
+interviewer, and can read exactly how their resume was scored. A system that scores people
+and shows them nothing is the thing this app argues against.
+
+**HR** — `/hr`, then the room and everything behind it. One shared id and passcode, checked
+on the server (`HR_ID` / `HR_PASSCODE`, default `hr` / `letmein`), held in an httpOnly
+cookie, enforced in `middleware.ts`. **This is access control for a demo, not
+authentication** — no accounts, no per-user identity, and anyone with the passcode is
+everyone. Real auth is an open item.
+
+### The consent handshake
+
+An interview starts with an invitation, not a click-through. HR invites from a case file;
+the applicant sees the request in their own room with what it involves; nothing begins
+until they agree, and declining is recorded as a choice rather than a mark against them.
+
+**This part needs a server to be real.** HR and the applicant are two people on two
+devices, and this app stores everything in `localStorage`. What ships is the demo version:
+one browser, two tabs, kept in step by a `storage` listener that rehydrates the store. The
+screens and the flow are the real ones — the transport is not. Putting a database behind it
+is the next structural step, and none of this UI has to change for it.
+
+| Route | What it is | Who |
+| --- | --- | --- |
+| `/` | The front door | Anyone |
+| `/apply` | Resume intake and screening | Applicant |
+| `/apply/room` | Their seat, their result, the consent request, the live interview | Applicant |
+| `/hr` | Sign in | Anyone |
+| `/room` | The interview room — the pixel scene and a status strip | HR |
+| `/criteria` | Requirements, the role library, and department management | HR |
+| `/competencies` | What gets scored, the standard behind it, and the priority weights | HR |
+| `/candidates` | Resume intake, the queue, and the "Run AI screening" action | HR |
+| `/records` | The full audit trail, with a JSON export | HR |
 
 ## The room moves
 
@@ -122,7 +151,9 @@ facts about the person.
 
 **Competencies** are scored 0-10 against their own written definition — what the
 competency means for this role, what a strong answer looks like, what a weak one looks
-like. Priority sets the weight: high 3, medium 2, low 1.
+like. Priority sets the weight, and **the weights belong to the department**: a team where
+one competency carries the role sets a steep curve, a team hiring for all-round strength
+sets a flat one. They default to 3 / 2 / 1 and are edited on `/competencies`.
 
 1. Each queued candidate is sent to `POST /api/analyze` one at a time.
 2. The route calls Claude server-side with a Zod schema via `messages.parse()`, so the

@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
 
 const NAV = [
-  { href: "/", label: "Interview Room", hint: "the panel, as it stands" },
+  { href: "/room", label: "Interview Room", hint: "the panel, as it stands" },
   { href: "/criteria", label: "Requirements", hint: "must pass, all of them" },
   { href: "/competencies", label: "Competencies", hint: "scored, weighted, ranks the room" },
   { href: "/candidates", label: "Candidates", hint: "intake + run screening" },

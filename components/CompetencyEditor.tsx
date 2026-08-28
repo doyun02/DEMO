@@ -4,7 +4,7 @@ import { useState } from "react";
 import { EmptyState, PixelButton, PixelPanel, Tag } from "./PixelUI";
 import { weightFor } from "@/lib/scoring";
 import { useActiveDepartment, useApp } from "@/lib/store";
-import { PRIORITIES, type Priority } from "@/lib/types";
+import { DEFAULT_WEIGHTS, PRIORITIES, type Priority } from "@/lib/types";
 
 /**
  * Competencies: what gets scored, and what the score is scored *against*.
@@ -20,6 +20,7 @@ export function CompetencyEditor() {
   const addCompetency = useApp((s) => s.addCompetency);
   const updateCompetency = useApp((s) => s.updateCompetency);
   const removeCompetency = useApp((s) => s.removeCompetency);
+  const setWeights = useApp((s) => s.setWeights);
   const [draft, setDraft] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -32,12 +33,59 @@ export function CompetencyEditor() {
   }
 
   const blank = dept.competencies.filter((c) => !c.description.trim()).length;
+  const weights = dept.weights ?? DEFAULT_WEIGHTS;
+
 
   return (
     <PixelPanel
       title={`Competencies — ${dept.name}`}
-      subtitle="Scored 0-10 each. Priority sets the weight: high 3, medium 2, low 1. Nobody is disqualified by a competency — they rank lower."
+      subtitle={`Scored 0-10 each. Priority sets the weight, currently ${weights.high} / ${weights.medium} / ${weights.low}. Nobody is disqualified by a competency — they rank lower.`}
     >
+      {/* Weights first: they change what every score below is worth. */}
+      <div className="mb-6 border-2 border-ink-600 p-4">
+        <p className="font-pixel text-[9px] uppercase tracking-wider text-slate-200">
+          What each priority is worth here
+        </p>
+        <p className="mt-2 text-slate-400">
+          Departments do not agree on this. A steep curve says one competency carries the role;
+          a flat one says you are hiring for all-round strength.
+        </p>
+        <div className="mt-4 flex flex-wrap items-end gap-4">
+          {PRIORITIES.map((p) => (
+            <div key={p}>
+              <label
+                htmlFor={`weight-${p}`}
+                className="mb-1 block font-pixel text-[8px] uppercase tracking-wider text-slate-400"
+              >
+                {p}
+              </label>
+              <input
+                id={`weight-${p}`}
+                type="number"
+                min={0}
+                max={10}
+                value={weights[p]}
+                onChange={(e) =>
+                  setWeights(dept.id, { ...weights, [p]: Number(e.target.value) })
+                }
+                className="pixel-input w-20 px-3 py-2"
+              />
+            </div>
+          ))}
+          <button
+            onClick={() => setWeights(dept.id, DEFAULT_WEIGHTS)}
+            className="pixel-btn px-3 py-2 font-pixel text-[9px] uppercase tracking-wider"
+          >
+            Reset to 3 / 2 / 1
+          </button>
+        </div>
+        <p className="mt-3 text-slate-400">
+          A weight of 0 keeps a competency in the report and out of the score. Changing these
+          does not touch scores already recorded — each run keeps the weights it was scored
+          under.
+        </p>
+      </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -109,7 +157,7 @@ export function CompetencyEditor() {
                   >
                     {PRIORITIES.map((p) => (
                       <option key={p} value={p}>
-                        {p} (×{weightFor(p)})
+                        {p} (×{weightFor(p, weights)})
                       </option>
                     ))}
                   </select>
@@ -160,7 +208,7 @@ export function CompetencyEditor() {
       <div className="mt-6 flex flex-wrap items-center gap-2 border-t-2 border-ink-600 pt-4">
         <Tag>{dept.competencies.length} competencies</Tag>
         <Tag>
-          total weight {dept.competencies.reduce((sum, c) => sum + weightFor(c.priority), 0)}
+          total weight {dept.competencies.reduce((sum, c) => sum + weightFor(c.priority, weights), 0)}
         </Tag>
       </div>
     </PixelPanel>

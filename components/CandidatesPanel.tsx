@@ -119,7 +119,7 @@ export function CandidatesPanel() {
     };
     addRun(run);
     setScreening({ running: false });
-    router.push("/");
+    router.push("/room");
   }
 
   const missingStandard = dept.requirements.length === 0 && dept.competencies.length === 0;

@@ -15,12 +15,19 @@ export function CaseFile({
   onClose,
   onStartInterview,
   interviewed,
+  invite,
+  onInvite,
+  onWithdrawInvite,
 }: {
   result: ScreeningResult | null;
   onClose: () => void;
   /** Omitted where an interview makes no sense — a Records row, say. */
   onStartInterview?: (result: ScreeningResult) => void;
   interviewed?: boolean;
+  /** Where the consent handshake has got to. */
+  invite?: { invitedAt: string; consentedAt?: string; declinedAt?: string };
+  onInvite?: (result: ScreeningResult) => void;
+  onWithdrawInvite?: (result: ScreeningResult) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -71,15 +78,39 @@ export function CaseFile({
           </button>
         </div>
 
-        {onStartInterview && (
+        {(onInvite || onStartInterview) && (
           <div className="mb-5 flex flex-wrap items-center gap-3 border-2 border-brass-700 p-3">
-            <PixelButton variant="primary" onClick={() => onStartInterview(result)}>
-              {interviewed ? "Interview again" : "Interview in the room"}
-            </PixelButton>
+            {/* An interview starts with an invitation the candidate can decline.
+                Consent is the first step, not a checkbox on the way past. */}
+            {!invite && onInvite && (
+              <PixelButton variant="primary" onClick={() => onInvite(result)}>
+                {interviewed ? "Invite to interview again" : "Invite to interview"}
+              </PixelButton>
+            )}
+            {invite?.consentedAt && onStartInterview && (
+              <PixelButton variant="primary" onClick={() => onStartInterview(result)}>
+                Open the interview
+              </PixelButton>
+            )}
+            {invite && !invite.consentedAt && !invite.declinedAt && onWithdrawInvite && (
+              <PixelButton onClick={() => onWithdrawInvite(result)}>Withdraw the invitation</PixelButton>
+            )}
+            {invite?.declinedAt && onWithdrawInvite && (
+              <PixelButton onClick={() => onWithdrawInvite(result)}>Clear</PixelButton>
+            )}
+
             <p className="min-w-0 flex-1 text-slate-400">
-              {interviewed
-                ? "This candidate has already been interviewed. Their scores below carry that evidence."
-                : "The AI proposes each question; you ask it and type back what they said. Finishing rescores them and re-seats the room."}
+              {invite?.consentedAt
+                ? onStartInterview
+                  ? "They agreed. You ask each question the AI proposes and type back what they said; finishing rescores them and re-seats the room."
+                  : "They agreed and are waiting. Open the interview from the Interview Room."
+                : invite?.declinedAt
+                  ? "They declined. That is a choice, not a mark against them — their resume assessment stands on its own."
+                  : invite
+                    ? "Waiting for them to agree. Nothing starts until they do."
+                    : interviewed
+                      ? "Already interviewed once. Their scores below carry that evidence."
+                      : "They will be asked first. Nothing starts until they agree."}
             </p>
           </div>
         )}
@@ -161,7 +192,7 @@ export function CaseFile({
             Competencies — scored 0-10
           </h3>
           <p className="mb-3 text-slate-400">
-            Weight follows priority: high 3, medium 2, low 1.
+            Weight follows the priority curve this department was scored under.
           </p>
           <ul className="space-y-2">
             {result.competencyResults.map((c) => (

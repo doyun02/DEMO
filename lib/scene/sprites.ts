@@ -263,3 +263,89 @@ export function drawHRBack(
   px(ctx, cx - 10, headTop + 5, 1, 18, "#3c4a72");
   px(ctx, cx - 17, baseY - 42 + b, 1, 32, "#2c3a5e");
 }
+
+/**
+ * The HR interviewer seen from the applicant's chair — the reverse of the shot
+ * the room uses. Same rig and the same one-pixel detail density as everyone
+ * else, scaled up because this is the only person in frame.
+ */
+export function drawHRFront(
+  ctx: Ctx,
+  cx: number,
+  baseY: number,
+  p: CandidatePalette,
+  s: { breath: number; blinking: boolean; speaking: boolean },
+) {
+  const b = s.breath;
+  const headTop = baseY - 78;
+
+  // chair, just visible past the shoulders
+  px(ctx, cx - 34, baseY - 40, 68, 40, "#3a3450");
+  px(ctx, cx - 34, baseY - 40, 68, 2, "#4c4668");
+  px(ctx, cx - 36, baseY - 34, 2, 34, "#2c2740");
+  px(ctx, cx + 34, baseY - 34, 2, 34, "#2c2740");
+
+  // torso
+  px(ctx, cx - 26, baseY - 42 + b, 52, 42, p.outfitShade);
+  px(ctx, cx - 24, baseY - 40 + b, 48, 40, p.outfit);
+  px(ctx, cx - 30, baseY - 36 + b, 6, 36, p.outfitShade); // arms
+  px(ctx, cx + 24, baseY - 36 + b, 6, 36, p.outfitShade);
+  px(ctx, cx - 22, baseY - 40 + b, 44, 2, "#ffffff11");
+
+  // shirt and collar
+  px(ctx, cx - 9, baseY - 44 + b, 18, 20, "#e6e9f2");
+  px(ctx, cx - 13, baseY - 45 + b, 8, 9, "#dfe3ee");
+  px(ctx, cx + 5, baseY - 45 + b, 8, 9, "#dfe3ee");
+  px(ctx, cx - 3, baseY - 40 + b, 6, 18, p.accent); // tie
+  px(ctx, cx - 4, baseY - 42 + b, 8, 3, p.accent);
+
+  // neck
+  px(ctx, cx - 7, baseY - 50, 14, 8, p.skinShade);
+
+  // head
+  px(ctx, cx - 15, headTop, 30, 32, p.skin);
+  px(ctx, cx - 15, headTop, 30, 4, p.skinShade);
+  px(ctx, cx - 17, headTop + 12, 2, 7, p.skinShade); // ears
+  px(ctx, cx + 15, headTop + 12, 2, 7, p.skinShade);
+  px(ctx, cx - 15, headTop + 28, 30, 4, p.skinShade); // jaw
+
+  // hair
+  px(ctx, cx - 16, headTop - 4, 32, 8, p.hair);
+  px(ctx, cx - 14, headTop - 6, 28, 3, p.hairShade);
+  px(ctx, cx - 18, headTop + 2, 3, 14, p.hair);
+  px(ctx, cx + 15, headTop + 2, 3, 14, p.hair);
+  px(ctx, cx - 15, headTop + 3, 30, 2, p.hairShade);
+
+  // face
+  if (s.blinking) {
+    px(ctx, cx - 10, headTop + 15, 6, 1, p.skinShade);
+    px(ctx, cx + 4, headTop + 15, 6, 1, p.skinShade);
+  } else {
+    px(ctx, cx - 10, headTop + 13, 6, 4, "#f4f6fb");
+    px(ctx, cx + 4, headTop + 13, 6, 4, "#f4f6fb");
+    px(ctx, cx - 8, headTop + 14, 2, 3, "#1a1f2e");
+    px(ctx, cx + 6, headTop + 14, 2, 3, "#1a1f2e");
+  }
+  px(ctx, cx - 11, headTop + 11, 7, 1, p.hairShade); // brows
+  px(ctx, cx + 4, headTop + 11, 7, 1, p.hairShade);
+  px(ctx, cx - 2, headTop + 18, 4, 4, p.skinShade); // nose
+  if (s.speaking) {
+    px(ctx, cx - 4, headTop + 24, 8, 3, "#4a2b2b");
+    px(ctx, cx - 3, headTop + 25, 6, 1, "#7a4a4a");
+  } else {
+    px(ctx, cx - 4, headTop + 25, 8, 1, p.skinShade);
+  }
+
+  if (p.glasses) {
+    const rim = "#39405c";
+    px(ctx, cx - 12, headTop + 11, 9, 1, rim);
+    px(ctx, cx - 12, headTop + 18, 9, 1, rim);
+    px(ctx, cx - 12, headTop + 11, 1, 8, rim);
+    px(ctx, cx - 4, headTop + 11, 1, 8, rim);
+    px(ctx, cx + 3, headTop + 11, 9, 1, rim);
+    px(ctx, cx + 3, headTop + 18, 9, 1, rim);
+    px(ctx, cx + 3, headTop + 11, 1, 8, rim);
+    px(ctx, cx + 11, headTop + 11, 1, 8, rim);
+    px(ctx, cx - 4, headTop + 14, 7, 1, rim); // bridge
+  }
+}
