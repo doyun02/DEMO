@@ -82,4 +82,7 @@ export type ScreeningRun = {
   departmentName: string;
   ranAt: string;
   results: ScreeningResult[];
+  /** True for the seeded demo runs that ship with the app, so a reader can
+   *  always tell an example apart from a judgment the AI actually made. */
+  sample?: boolean;
 };

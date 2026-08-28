@@ -72,6 +72,46 @@ move to a paid plan and long resumes start timing out.
 | `/candidates` | Resume intake, the queue, and the "Run AI screening" action |
 | `/records` | The full audit trail, with a JSON export |
 
+## The room moves
+
+A screening run doesn't just reorder a list, it changes who is in the room:
+
+- **Newly seated** candidates come in through the door at the right and walk to
+  their chair.
+- **Re-ranked** candidates stand up, cross the room, and sit back down in the seat
+  their new score earned them.
+- **Anyone who drops out of the top five** stands up and walks out the same door.
+
+`lib/scene/choreography.ts` turns "who sat where before" and "who sits where now"
+into a timeline; it is pure, so it can be checked without a canvas. The renderer
+samples it each frame. Seat order is centre-out — the highest score takes the
+middle chair, the next two flank it, and so on.
+
+While nobody is moving, the row still isn't still: each candidate runs the same
+idle loop out of phase with everyone else — a slow breath, an occasional blink, a
+glance sideways at a rival, a hand lifting off the desk. When a screening run is
+in flight, they all look up at the AI terminal that is scoring them.
+
+Under `prefers-reduced-motion: reduce`, none of this runs: the room cuts straight
+to its settled state.
+
+## Sample data
+
+The app ships with three departments — Backend Engineer, Product Designer, Data
+Analyst — carrying ten resumes each, plus one screened run per department, so the
+room is populated before you have run anything.
+
+The set is built to make the seating rule visible. Two of the highest-scoring
+candidates in it never reach a chair: a principal engineer with eight years of
+Rails scores 7 and is still out, because none of the four required languages
+appear in his resume; a consultant who scores 8 is out because he has never
+queried a warehouse himself. A high score does not survive a missed requirement.
+
+Seeded runs are tagged `sample: true` and labelled **Sample** in Records, so an
+example never reads as a judgment the AI actually made. Nothing is hand-seated:
+the sample runs go through `seatCandidates()`, the same function the live run
+uses, so the demo can never contradict the rule it is demonstrating.
+
 ## How screening works
 
 1. Each queued candidate is sent to `POST /api/analyze` one at a time.

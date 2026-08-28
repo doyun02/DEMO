@@ -23,14 +23,35 @@ export type SeatOccupant = {
   palette: CandidatePalette;
 } | null;
 
+/**
+ * A candidate as the renderer sees them right now — not "in seat 3", but "at
+ * this x, this far out of their chair". The choreography module produces these;
+ * a settled room is just every actor sitting at its own seat.
+ */
+export type SceneActor = {
+  key: string;
+  palette: CandidatePalette;
+  /** Scene x of the sprite's centre. */
+  x: number;
+  /** 0 seated, up to STAND_LIFT standing. */
+  lift: number;
+  walking: boolean;
+  selected: boolean;
+};
+
 export type SceneState = {
+  /** Where the room settles: drives chairs, nameplates and the evidence board. */
   seats: SeatOccupant[];
+  /** Who is actually on screen this frame, and where. */
+  actors: SceneActor[];
   selectedIndex: number | null;
   hoverIndex: number | null;
   timeMs: number;
   reducedMotion: boolean;
   /** true while a screening run is in flight — the AI terminal works visibly. */
   aiBusy: boolean;
+  /** 0 closed, 1 fully open — driven by whoever is near the doorway. */
+  doorOpenness: number;
 };
 
 /**
@@ -50,7 +71,11 @@ const HR_PALETTE: CandidatePalette = {
 };
 
 /** Seat centres, evenly spread along the candidate panel desk. */
-export const SEAT_XS = [54, 123, 192, 261, 330];
+export const SEAT_XS = [88, 140, 192, 244, 296];
+
+/** Scene x candidates walk to and from. The door sits behind the bench's right
+ *  end, so a walker's lower body is hidden the whole way across. */
+export const DOOR_X = 352;
 /** y of the candidate desk's top edge — sprites sit just above it. */
 export const ROW_DESK_Y = 118;
 const SPRITE_TOP = ROW_DESK_Y - 32;
@@ -116,10 +141,10 @@ function drawCeilingFixtures(ctx: Ctx, t: number, reduced: boolean) {
 }
 
 function drawWindow(ctx: Ctx, t: number) {
-  const x = 300;
-  const y = 26;
-  const w = 72;
-  const h = 52;
+  const x = 244;
+  const y = 20;
+  const w = 68;
+  const h = 48;
   px(ctx, x - 3, y - 3, w + 6, h + 6, "#2a2036"); // frame
   px(ctx, x - 2, y - 2, w + 4, h + 4, "#3a2c48");
 
@@ -158,10 +183,10 @@ function drawWindow(ctx: Ctx, t: number) {
  * were judged against.
  */
 function drawEvidenceBoard(ctx: Ctx, seats: SeatOccupant[]) {
-  const x = 10;
-  const y = 30;
-  const w = 84;
-  const h = 66;
+  const x = 8;
+  const y = 22;
+  const w = 80;
+  const h = 62;
 
   px(ctx, x - 2, y - 2, w + 4, h + 4, "#5a3f2a"); // frame
   px(ctx, x, y, w, h, "#7a5a3a"); // cork
@@ -205,24 +230,74 @@ function drawEvidenceBoard(ctx: Ctx, seats: SeatOccupant[]) {
   });
 }
 
+/**
+ * The door candidates arrive through and leave by. Its base is behind the bench,
+ * so the room never has to draw a walking pair of legs.
+ */
+function drawDoor(ctx: Ctx, openness: number) {
+  const x = 330;
+  const y = 48;
+  const w = 44;
+  const h = ROW_DESK_Y - y + 6;
+
+  px(ctx, x - 4, y - 4, w + 8, h + 4, "#241c30"); // architrave
+  px(ctx, x - 4, y - 4, w + 8, 2, "#3a2c48");
+  px(ctx, x - 2, y - 2, w + 4, h + 2, "#181428");
+
+  if (openness <= 0.02) {
+    // closed: a panelled door
+    px(ctx, x, y, w, h, "#3d2a1c");
+    px(ctx, x, y, w, 2, "#5a3f2a");
+    px(ctx, x + 4, y + 6, w - 8, 26, "#33241a");
+    px(ctx, x + 4, y + 6, w - 8, 1, "#4a3423");
+    px(ctx, x + 4, y + 38, w - 8, 24, "#33241a");
+    px(ctx, x + 4, y + 38, w - 8, 1, "#4a3423");
+    px(ctx, x + w - 9, y + 34, 4, 4, "#c98a25"); // handle
+    return;
+  }
+
+  // open: the corridor beyond, and the leaf swung back against the wall
+  const gap = Math.round(w * Math.min(1, openness));
+  px(ctx, x, y, w, h, "#120d0a"); // the dark corridor
+  px(ctx, x, y, gap, h, "#4a3a22"); // lit from beyond
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0, "rgba(255,226,166,0.55)");
+  g.addColorStop(0.6, "rgba(255,214,130,0.22)");
+  g.addColorStop(1, "rgba(255,214,130,0.05)");
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, gap, h);
+  px(ctx, x + gap - 2, y, 2, h, "#ffe9b8"); // the bright edge of the opening
+
+  const leaf = Math.max(4, w - gap);
+  px(ctx, x + w - leaf, y, leaf, h, "#33241a");
+  px(ctx, x + w - leaf, y, leaf, 2, "#4a3423");
+  px(ctx, x + w - leaf, y, 1, h, "#5a3f2a");
+
+  // spill across the bench in front of the doorway
+  const spill = ctx.createRadialGradient(x + gap / 2, ROW_DESK_Y, 4, x + gap / 2, ROW_DESK_Y, 70);
+  spill.addColorStop(0, `rgba(255,220,150,${(0.20 * openness).toFixed(3)})`);
+  spill.addColorStop(1, "rgba(255,220,150,0)");
+  ctx.fillStyle = spill;
+  ctx.fillRect(x - 70, y, 140 + w, h + 30);
+}
+
 function drawFilingCabinets(ctx: Ctx) {
   const draw = (x: number, w: number) => {
-    px(ctx, x, 100, w, 42, "#2a3150");
-    px(ctx, x, 100, w, 2, "#3a4368");
-    px(ctx, x + w - 2, 102, 2, 40, "#1b2038");
+    px(ctx, x, 78, w, 40, "#2a3150");
+    px(ctx, x, 78, w, 2, "#3a4368");
+    px(ctx, x + w - 2, 80, 2, 38, "#1b2038");
     for (let i = 0; i < 3; i++) {
-      const dy = 104 + i * 13;
-      px(ctx, x + 3, dy, w - 8, 11, "#232a45");
+      const dy = 82 + i * 12;
+      px(ctx, x + 3, dy, w - 8, 10, "#232a45");
       px(ctx, x + 3, dy, w - 8, 1, "#3a4368");
       px(ctx, x + w / 2 - 4, dy + 4, 8, 2, "#7f95c4"); // handle
     }
   };
   draw(4, 34);
-  draw(346, 34);
-  // a stack of paper on the left cabinet
-  px(ctx, 10, 94, 20, 6, "#d9d2c2");
-  px(ctx, 10, 94, 20, 1, "#f0ebdd");
-  px(ctx, 12, 92, 16, 2, "#c9c1ae");
+  // a stack of paper on the cabinet
+  px(ctx, 10, 72, 20, 6, "#d9d2c2");
+  px(ctx, 10, 72, 20, 1, "#f0ebdd");
+  px(ctx, 12, 70, 16, 2, "#c9c1ae");
 }
 
 /** Wall-mounted AI terminal — the scorer, present as a machine, not a person. */
@@ -269,30 +344,72 @@ function drawAITerminal(ctx: Ctx, t: number, busy: boolean, reduced: boolean) {
 
 /* ─────────────────────────── candidate row ───────────────────────── */
 
+/**
+ * Idle behaviour. Every candidate runs the same small loop out of phase with
+ * everyone else, so the row is never still and never synchronised: a slow
+ * breath, an occasional blink, a glance sideways at a rival, a hand lifting off
+ * the desk. When the AI terminal is working, they all look up at it.
+ */
+function idleState(seed: number, t: number, aiBusy: boolean, reduced: boolean) {
+  if (reduced) return { breath: 0, blinking: false, glance: 0 as const, lookUp: false, fidget: 0 as const };
+
+  const phase = (period: number, offset: number) => ((t / period + offset) % 1 + 1) % 1;
+  const off = (seed % 97) / 97;
+
+  const blink = phase(5200, off) < 0.028;
+  const glanceP = phase(8600, off * 1.7);
+  const glance: -1 | 0 | 1 = glanceP < 0.06 ? -1 : glanceP > 0.94 ? 1 : 0;
+  const fidget: 0 | 1 = phase(6400, off * 2.3) < 0.09 ? 1 : 0;
+
+  return {
+    breath: Math.floor((t / 900 + off * 2) % 2) === 0 ? 0 : 1,
+    blinking: blink,
+    glance,
+    lookUp: aiBusy,
+    fidget,
+  };
+}
+
+function hashKey(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 function drawCandidateRow(ctx: Ctx, s: SceneState) {
-  // chairs and occupants sit behind the panel desk
-  s.seats.forEach((occ, i) => {
-    const cx = SEAT_XS[i];
-    if (!occ) {
-      drawEmptyChair(ctx, cx, ROW_DESK_Y);
-      return;
+  // Chairs first — every chair is drawn, and a seated sprite covers its own.
+  for (let i = 0; i < SEAT_XS.length; i++) drawEmptyChair(ctx, SEAT_XS[i], ROW_DESK_Y);
+
+  // Actors, back-to-front by x so overlaps during a crossing look right.
+  const ordered = [...s.actors].sort((a, b) => a.x - b.x);
+  for (const actor of ordered) {
+    const seed = hashKey(actor.key);
+    const idle = idleState(seed, s.timeMs, s.aiBusy, s.reducedMotion);
+    const walkBob =
+      actor.walking && !s.reducedMotion ? (Math.floor(s.timeMs / 130) % 2 as 0 | 1) : 0;
+
+    // A candidate out of their chair leans forward slightly as they rise.
+    const y = SPRITE_TOP - Math.round(actor.lift);
+
+    if (actor.lift > 0.5) {
+      // chair pushed back, so the empty chair still reads while they are up
+      px(ctx, Math.round(actor.x) - 11, ROW_DESK_Y - 24, 22, 20, "#141930");
     }
-    px(ctx, cx - 11, ROW_DESK_Y - 26, 22, 22, "#161b30"); // chair back
-    const breath =
-      s.reducedMotion ? 0 : Math.floor((s.timeMs / 900 + i * 0.37) % 2) === 0 ? 0 : 1;
-    const blinkPhase = (s.timeMs / 1000 + i * 1.7) % 5.2;
-    drawCandidate(ctx, cx - 16, SPRITE_TOP, occ.palette, {
-      breath,
-      blinking: !s.reducedMotion && blinkPhase < 0.14,
-      selected: s.selectedIndex === i,
+
+    drawCandidate(ctx, Math.round(actor.x) - 16, y - walkBob, actor.palette, {
+      ...idle,
+      breath: actor.walking ? 0 : idle.breath,
+      selected: actor.selected,
+      bob: walkBob,
+      fidget: actor.walking ? 0 : idle.fidget,
     });
-  });
+  }
 
   // the long panel desk in front of the row
-  px(ctx, 16, ROW_DESK_Y, 352, 4, WOOD.topLight);
-  px(ctx, 16, ROW_DESK_Y + 4, 352, 18, WOOD.face);
-  px(ctx, 16, ROW_DESK_Y + 22, 352, 2, WOOD.edge);
-  for (const x of [16, 118, 220, 322]) px(ctx, x, ROW_DESK_Y + 4, 2, 18, WOOD.edge);
+  px(ctx, 0, ROW_DESK_Y, SCENE_W, 4, WOOD.topLight);
+  px(ctx, 0, ROW_DESK_Y + 4, SCENE_W, 18, WOOD.face);
+  px(ctx, 0, ROW_DESK_Y + 22, SCENE_W, 2, WOOD.edge);
+  for (const x of [62, 114, 166, 218, 270, 322]) px(ctx, x, ROW_DESK_Y + 4, 2, 18, WOOD.edge);
 
   // nameplates
   s.seats.forEach((occ, i) => {
@@ -479,6 +596,7 @@ export function drawScene(ctx: Ctx, s: SceneState) {
   drawWindow(ctx, t);
   drawEvidenceBoard(ctx, s.seats);
   drawFilingCabinets(ctx);
+  drawDoor(ctx, s.doorOpenness);
   drawAITerminal(ctx, t, s.aiBusy, s.reducedMotion);
   drawCandidateRow(ctx, s);
   drawHRDesk(ctx, t, s.reducedMotion);

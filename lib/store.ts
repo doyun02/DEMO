@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { newId } from "./id";
-import { SAMPLE_CANDIDATES, SAMPLE_DEPARTMENTS } from "./sampleData";
+import { SAMPLE_CANDIDATES, SAMPLE_DEPARTMENTS, SAMPLE_RUNS } from "./sampleData";
 import type {
   Candidate,
   Criterion,
@@ -46,7 +46,7 @@ const initial = {
   departments: SAMPLE_DEPARTMENTS,
   activeDepartmentId: SAMPLE_DEPARTMENTS[0].id,
   candidates: SAMPLE_CANDIDATES,
-  runs: [] as ScreeningRun[],
+  runs: SAMPLE_RUNS as ScreeningRun[],
   selectedCandidateId: null as string | null,
   screening: { running: false, done: 0, total: 0 },
 };
@@ -157,7 +157,13 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "judgment-track:v1",
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      // v2 reseeds: the sample set went from one department to three, with a
+      // screened run each. Anything a visitor added under v1 is not worth
+      // migrating field by field, and the seeded runs are examples, not records
+      // of real judgments.
+      migrate: () => ({ ...initial }),
       partialize: (s) => ({
         departments: s.departments,
         activeDepartmentId: s.activeDepartmentId,

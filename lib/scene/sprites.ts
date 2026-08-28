@@ -16,6 +16,15 @@ export type SpriteState = {
   blinking: boolean;
   /** true while this candidate is spotlighted. */
   selected: boolean;
+  /** -1, 0 or 1 — where the eyes are pointed. Candidates glance sideways at
+   *  each other while they wait; it is the cheapest possible sign of life. */
+  glance?: -1 | 0 | 1;
+  /** true when the eyes are up on the AI terminal, which is scoring them. */
+  lookUp?: boolean;
+  /** 0 or 1 — a hand lifting off the desk. Fidgeting, not gesturing. */
+  fidget?: 0 | 1;
+  /** 0 or 1 — the walk-cycle bob, used while crossing the room. */
+  bob?: 0 | 1;
 };
 
 /**
@@ -40,7 +49,8 @@ export function drawCandidate(
   px(ctx, X(4), Y(21 + b), 3, 11, p.outfitShade); // left arm
   px(ctx, X(25), Y(21 + b), 3, 11, p.outfitShade); // right arm
   px(ctx, X(5), Y(28 + b), 2, 4, p.skinShade); // left hand on the desk
-  px(ctx, X(25), Y(28 + b), 2, 4, p.skinShade); // right hand
+  const f = s.fidget ?? 0;
+  px(ctx, X(25), Y(28 + b - f * 2), 2, 4 + f * 2, p.skinShade); // right hand
 
   // ── collar / neckline: three variants, same footprint ──────────────
   if (p.collar === 0) {
@@ -97,8 +107,10 @@ export function drawCandidate(
   } else {
     px(ctx, X(12), Y(9), 3, 2, "#f4f6fb");
     px(ctx, X(17), Y(9), 3, 2, "#f4f6fb");
-    px(ctx, X(13), Y(9), 1, 2, "#1a1f2e"); // pupils, angled toward the HR desk
-    px(ctx, X(18), Y(9), 1, 2, "#1a1f2e");
+    const gx = s.glance ?? 0;
+    const gy = s.lookUp ? -1 : 0;
+    px(ctx, X(13 + gx), Y(9 + gy), 1, 2 + gy * -1, "#1a1f2e"); // pupils
+    px(ctx, X(18 + gx), Y(9 + gy), 1, 2 + gy * -1, "#1a1f2e");
   }
   px(ctx, X(15), Y(11), 2, 2, p.skinShade); // nose
   px(ctx, X(14), Y(14), 4, 1, p.skinShade); // mouth

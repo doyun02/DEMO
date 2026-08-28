@@ -82,16 +82,39 @@ const OUTFITS: Array<[string, string]> = [
 const ACCENTS = ["#f2b544", "#7f95c4", "#c25e5e", "#5fa887", "#b07fc4", "#d9d2c2"];
 
 /**
+ * Avalanche step. FNV's high bits are its weakest, and the palette used to read
+ * hair style, glasses and collar from shifts 22/26/28 of a single hash — which
+ * left one of the four hair silhouettes essentially unreachable and made a row
+ * of candidates look like siblings. Mixing first, then drawing each trait from
+ * its own derived value, gives every field an independent spread.
+ */
+function mix(h: number): number {
+  let x = h >>> 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+/**
  * Distinct look per candidate, same underlying rig — seeded by name so a
  * candidate always renders identically across sessions.
  */
 export function candidatePalette(seedSource: string): CandidatePalette {
-  const h = hashString(seedSource);
-  const pick = <T,>(arr: T[], shift: number): T => arr[(h >>> shift) % arr.length];
+  let cursor = hashString(seedSource);
+  /** Each call advances the stream, so no two traits share bits. */
+  const next = (): number => {
+    cursor = mix(cursor + 0x9e3779b9);
+    return cursor;
+  };
+  const pick = <T,>(arr: T[]): T => arr[next() % arr.length];
 
-  const [skin, skinShade] = pick(SKINS, 0);
-  const [hair, hairShade] = pick(HAIRS, 5);
-  const [outfit, outfitShade] = pick(OUTFITS, 11);
+  const [skin, skinShade] = pick(SKINS);
+  const [hair, hairShade] = pick(HAIRS);
+  const [outfit, outfitShade] = pick(OUTFITS);
+  const accent = pick(ACCENTS);
 
   return {
     skin,
@@ -100,9 +123,9 @@ export function candidatePalette(seedSource: string): CandidatePalette {
     hairShade,
     outfit,
     outfitShade,
-    accent: pick(ACCENTS, 17),
-    hairStyle: ((h >>> 22) % 4) as 0 | 1 | 2 | 3,
-    glasses: ((h >>> 26) & 1) === 1,
-    collar: ((h >>> 28) % 3) as 0 | 1 | 2,
+    accent,
+    hairStyle: (next() % 4) as 0 | 1 | 2 | 3,
+    glasses: next() % 100 < 35,
+    collar: (next() % 3) as 0 | 1 | 2,
   };
 }

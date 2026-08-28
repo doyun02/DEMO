@@ -109,6 +109,7 @@ export function RecordsPanel() {
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ScoreBar score={result.score} seated={result.seated} />
+                      {run.sample && <Tag>Sample</Tag>}
                       {result.errored ? (
                         <Tag tone="fail">Flagged</Tag>
                       ) : result.seated ? (
@@ -130,6 +131,8 @@ export function RecordsPanel() {
         <p className="mt-6 border-t-2 border-ink-600 pt-4 text-slate-400">
           {rows.length} record{rows.length === 1 ? "" : "s"} shown · {runs.length} screening run
           {runs.length === 1 ? "" : "s"} kept · stored in this browser
+          {runs.some((r) => r.sample) &&
+            " · runs tagged Sample ship with the app as examples; they are not judgments the AI made"}
         </p>
       </PixelPanel>
 
