@@ -7,8 +7,8 @@ import { useApp } from "@/lib/store";
 
 const NAV = [
   { href: "/", label: "Interview Room", hint: "the panel, as it stands" },
-  { href: "/criteria", label: "Priority Criteria", hint: "must pass, all of them" },
-  { href: "/nice-to-have", label: "Nice-to-Have", hint: "bonus, never disqualifying" },
+  { href: "/criteria", label: "Requirements", hint: "must pass, all of them" },
+  { href: "/competencies", label: "Competencies", hint: "scored, weighted, ranks the room" },
   { href: "/candidates", label: "Candidates", hint: "intake + run screening" },
   { href: "/records", label: "Records", hint: "every judgment, kept" },
 ];

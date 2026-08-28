@@ -108,7 +108,7 @@ export function RecordsPanel() {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <ScoreBar score={result.score} seated={result.seated} />
+                      <ScoreBar score={result.score.overall} seated={result.seated} />
                       {run.sample && <Tag>Sample</Tag>}
                       {result.errored ? (
                         <Tag tone="fail">Flagged</Tag>
@@ -122,6 +122,22 @@ export function RecordsPanel() {
                     </div>
                   </div>
                   <p className="mt-3 line-clamp-2 text-slate-300">{result.summary}</p>
+                  <p className="mt-2 text-slate-400">
+                    {result.score.counted}/{result.score.total} competencies scored
+                    {result.tags.length > 0 && (
+                      <>
+                        {" · "}
+                        {result.tags.filter((t) => t.status === "demonstrated").length} demonstrated,
+                        {" "}
+                        {result.tags.filter((t) => t.status === "claimed").length} claimed
+                      </>
+                    )}
+                    {run.appliedStandard && (
+                      <span className="ml-2 text-slate-500">
+                        standard {run.appliedStandard.hash}
+                      </span>
+                    )}
+                  </p>
                 </button>
               </li>
             ))}
@@ -133,6 +149,11 @@ export function RecordsPanel() {
           {runs.length === 1 ? "" : "s"} kept · stored in this browser
           {runs.some((r) => r.sample) &&
             " · runs tagged Sample ship with the app as examples; they are not judgments the AI made"}
+        </p>
+        <p className="mt-2 text-slate-400">
+          Each run carries a frozen copy of the standard it applied, identified by the hash shown
+          on every row. Editing a department afterwards cannot change what a past candidate was
+          held to.
         </p>
       </PixelPanel>
 

@@ -63,7 +63,7 @@ export function InterviewRoom({
           ? {
               candidateId: r.candidateId,
               name: r.candidateName,
-              score: r.score,
+              score: r.score.overall,
               palette: candidatePalette(r.candidateName + r.candidateId),
             }
           : null,
@@ -239,7 +239,7 @@ export function InterviewRoom({
                 onBlur={() => setHoverIndex((h) => (h === i ? null : h))}
                 aria-label={
                   occ
-                    ? `Seat ${i + 1}: ${occ.name}, scored ${occ.score} out of 10. Open case file.`
+                    ? `Seat ${i + 1}: ${occ.name}, scored ${occ.score} out of 100. Open case file.`
                     : `Seat ${i + 1}: vacant`
                 }
                 className="absolute disabled:cursor-default"
@@ -284,7 +284,7 @@ export function InterviewRoom({
       <ul className="sr-only">
         {occupants.map((occ, i) => (
           <li key={i}>
-            {occ ? `Seat ${i + 1}: ${occ.name}, ${occ.score} out of 10` : `Seat ${i + 1}: vacant`}
+            {occ ? `Seat ${i + 1}: ${occ.name}, ${occ.score} out of 100` : `Seat ${i + 1}: vacant`}
           </li>
         ))}
       </ul>

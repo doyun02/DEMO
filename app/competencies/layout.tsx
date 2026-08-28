@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Nice-to-Have Criteria",
-  description: "Bonus signals that colour a case file but never disqualify anyone.",
-  alternates: { canonical: "/nice-to-have" },
+  title: "Competencies",
+  description: "What gets scored, and the standard each score is measured against.",
+  alternates: { canonical: "/competencies" },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

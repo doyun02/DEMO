@@ -66,8 +66,8 @@ move to a paid plan and long resumes start timing out.
 | Route | What it is |
 | --- | --- |
 | `/` | The interview room — the pixel scene, a status strip, and the ☰ menu. Nothing else. |
-| `/criteria` | Required criteria (all must be met) and department management |
-| `/nice-to-have` | Bonus criteria — never disqualifying |
+| `/criteria` | Requirements, the role library, and department management |
+| `/competencies` | What gets scored, and the standard each score is measured against |
 | `/candidates` | Resume intake, the queue, and the "Run AI screening" action |
 | `/records` | The full audit trail, with a JSON export |
 
@@ -113,15 +113,59 @@ uses, so the demo can never contradict the rule it is demonstrating.
 
 ## How screening works
 
-1. Each queued candidate is sent to `POST /api/analyze` one at a time.
-2. The route calls Claude server-side with a strict JSON schema
-   (`output_config.format`), so the evaluation comes back shaped, not parsed out of prose.
-3. The **model** only judges criteria. The **app** decides seating: every required criterion
-   must be met to pass; passing candidates are sorted by score; the top 5 sit down.
-4. Everyone else lands in Records with an explicit reason — `requirement` (missed a hard
-   criterion) or `rank` (passed, but placed below the top 5).
+The standard has two halves, and keeping them apart is the whole design.
 
-A screening run is append-only. Re-running never edits or deletes an earlier run's records.
+**Requirements** are hard gates. Every one must be met; one miss disqualifies a candidate
+however well they score. The record distinguishes a resume that argued *against* a
+requirement from one that was simply *silent* on it — both fail, but they are different
+facts about the person.
+
+**Competencies** are scored 0-10 against their own written definition — what the
+competency means for this role, what a strong answer looks like, what a weak one looks
+like. Priority sets the weight: high 3, medium 2, low 1.
+
+1. Each queued candidate is sent to `POST /api/analyze` one at a time.
+2. The route calls Claude server-side with a Zod schema via `messages.parse()`, so the
+   evaluation arrives typed rather than parsed out of prose.
+3. The **model** judges each requirement and scores each competency, with a quote behind
+   every verdict. It never produces the overall score.
+4. **`lib/scoring.ts`** computes that: the weighted mean of the *reached* competencies,
+   rescaled to 0-100. Competencies the resume never spoke to are excluded from the mean
+   rather than scored zero, and every report carries the count the score rests on
+   ("7 of 8 competencies, total weight 19").
+5. Requirements decide who is eligible; the score decides who ranks. The top five
+   eligible candidates sit down.
+6. Everyone else lands in Records with an explicit reason — `requirement` (missed a gate)
+   or `rank` (eligible, but below the cut).
+
+A screening run is append-only, and carries a frozen copy of the standard it applied,
+identified by a content hash. Editing a department afterwards cannot change what a past
+candidate was held to.
+
+## Where this came from
+
+The assessment model is adapted from **[jaewoo001/hirescope](https://github.com/jaewoo001/hirescope)**,
+a resume-grounded adaptive interview system built by the other half of this project. Taken
+from it, deliberately:
+
+- **The scoring rule** — per-competency 0-10, priority weights, weighted mean of the
+  reached ones, and the refusal to score an unevidenced competency zero.
+- **Evidence, not vibes** — every score carries a quote and a confidence level, and an
+  unreached competency says so instead of producing a confident number.
+- **The competency definition format** — description, strong answer, weak answer. The weak
+  half matters as much as the strong one; without it, scoring drifts toward flattery.
+- **The skill diagram** — axes from the standard rather than a fixed set, with unevidenced
+  axes drawn hollow and dashed so the shape shows which parts of itself are supported.
+- **`demonstrated` / `claimed` / `contradicted`** — what a resume *shows* versus what it
+  *asserts*.
+- **The role library** — `lib/sample/roleLibrary.ts` is generated from that repo's
+  `criteria/*.md` by `scripts/import-criteria.py`. Twenty roles, 163 competencies, parsed
+  rather than paraphrased so the wording is theirs.
+
+Changed on the way across: their system has no hard gate — everything is weighted and
+nothing disqualifies. This app needs one, so requirements sit in front of the score. Not
+taken: the adaptive interview, homework, embeddings search, and the integrity signals, all
+of which assume a candidate typing into the app and a database behind it.
 
 ## The scene
 
@@ -149,6 +193,8 @@ Records panel's JSON export is the way to keep one outside the browser.
   `Candidate` type already carries `sourceFileName` for it.
 - **A different model or effort level** — `MODEL` and `output_config.effort` in
   `app/api/analyze/route.ts`.
+- **More roles** — re-run `python3 scripts/import-criteria.py <path-to-criteria-dir>` to
+  regenerate the role library from a checkout of the criteria files.
 - **The judge's look** — `HR_PALETTE` in `lib/scene/room.ts`. It is a `CandidatePalette`
   like everyone else's, so the HR figure is drawn by the same rig at the same pixel
   density; only the colours are pinned rather than seeded.

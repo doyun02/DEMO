@@ -3,15 +3,17 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { newId } from "./id";
+import { ROLE_LIBRARY } from "./sample/roleLibrary";
 import { SAMPLE_CANDIDATES, SAMPLE_DEPARTMENTS, SAMPLE_RUNS } from "./sampleData";
 import type {
   Candidate,
-  Criterion,
+  Competency,
   Department,
+  Priority,
+  Requirement,
+  RoleTemplate,
   ScreeningRun,
 } from "./types";
-
-type CriteriaKind = "priorityCriteria" | "niceToHave";
 
 type AppState = {
   departments: Department[];
@@ -23,14 +25,24 @@ type AppState = {
 
   setActiveDepartment: (id: string) => void;
   addDepartment: (name: string) => void;
+  addDepartmentFromTemplate: (slug: string) => void;
   renameDepartment: (id: string, name: string) => void;
   removeDepartment: (id: string) => void;
 
-  addCriterion: (departmentId: string, kind: CriteriaKind, label: string) => void;
-  updateCriterion: (departmentId: string, kind: CriteriaKind, id: string, label: string) => void;
-  removeCriterion: (departmentId: string, kind: CriteriaKind, id: string) => void;
+  addRequirement: (departmentId: string, label: string) => void;
+  updateRequirement: (departmentId: string, id: string, label: string) => void;
+  removeRequirement: (departmentId: string, id: string) => void;
 
-  addCandidate: (input: { name: string; departmentId: string; resumeText: string; sourceFileName?: string }) => void;
+  addCompetency: (departmentId: string, label: string) => void;
+  updateCompetency: (departmentId: string, id: string, patch: Partial<Competency>) => void;
+  removeCompetency: (departmentId: string, id: string) => void;
+
+  addCandidate: (input: {
+    name: string;
+    departmentId: string;
+    resumeText: string;
+    sourceFileName?: string;
+  }) => void;
   removeCandidate: (id: string) => void;
 
   selectCandidate: (id: string | null) => void;
@@ -38,7 +50,6 @@ type AppState = {
   addRun: (run: ScreeningRun) => void;
   clearRuns: () => void;
 
-  loadSampleData: () => void;
   resetAll: () => void;
 };
 
@@ -51,9 +62,30 @@ const initial = {
   screening: { running: false, done: 0, total: 0 },
 };
 
+/** A competency key derived from a label, so a hand-added one still has one. */
+function keyFromLabel(label: string): string {
+  const base = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return base || `competency_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function templateToDepartment(template: RoleTemplate): Department {
+  return {
+    id: newId("dept"),
+    name: template.title,
+    // A template supplies the competencies, which are the hard part to write.
+    // Requirements stay empty: a hard gate is company policy, not role theory,
+    // and inventing one here would put words in the hiring team's mouth.
+    requirements: [],
+    competencies: template.competencies.map((c) => ({ ...c, id: newId("comp") })),
+  };
+}
+
 export const useApp = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initial,
 
       setActiveDepartment: (id) => set({ activeDepartmentId: id, selectedCandidateId: null }),
@@ -62,9 +94,16 @@ export const useApp = create<AppState>()(
         const dept: Department = {
           id: newId("dept"),
           name: name.trim() || "Untitled department",
-          priorityCriteria: [],
-          niceToHave: [],
+          requirements: [],
+          competencies: [],
         };
+        set((s) => ({ departments: [...s.departments, dept], activeDepartmentId: dept.id }));
+      },
+
+      addDepartmentFromTemplate: (slug) => {
+        const template = ROLE_LIBRARY.find((r) => r.slug === slug);
+        if (!template) return;
+        const dept = templateToDepartment(template);
         set((s) => ({ departments: [...s.departments, dept], activeDepartmentId: dept.id }));
       },
 
@@ -84,31 +123,81 @@ export const useApp = create<AppState>()(
           };
         }),
 
-      addCriterion: (departmentId, kind, label) =>
+      addRequirement: (departmentId, label) =>
         set((s) => ({
           departments: s.departments.map((d) =>
             d.id === departmentId
-              ? { ...d, [kind]: [...d[kind], { id: newId("crit"), label: label.trim() }] }
+              ? { ...d, requirements: [...d.requirements, { id: newId("req"), label: label.trim() }] }
               : d,
           ),
         })),
 
-      updateCriterion: (departmentId, kind, id, label) =>
+      updateRequirement: (departmentId, id, label) =>
         set((s) => ({
           departments: s.departments.map((d) =>
             d.id === departmentId
               ? {
                   ...d,
-                  [kind]: d[kind].map((c: Criterion) => (c.id === id ? { ...c, label } : c)),
+                  requirements: d.requirements.map((r: Requirement) =>
+                    r.id === id ? { ...r, label } : r,
+                  ),
                 }
               : d,
           ),
         })),
 
-      removeCriterion: (departmentId, kind, id) =>
+      removeRequirement: (departmentId, id) =>
         set((s) => ({
           departments: s.departments.map((d) =>
-            d.id === departmentId ? { ...d, [kind]: d[kind].filter((c: Criterion) => c.id !== id) } : d,
+            d.id === departmentId
+              ? { ...d, requirements: d.requirements.filter((r: Requirement) => r.id !== id) }
+              : d,
+          ),
+        })),
+
+      addCompetency: (departmentId, label) =>
+        set((s) => ({
+          departments: s.departments.map((d) =>
+            d.id === departmentId
+              ? {
+                  ...d,
+                  competencies: [
+                    ...d.competencies,
+                    {
+                      id: newId("comp"),
+                      key: keyFromLabel(label),
+                      label: label.trim(),
+                      priority: "medium" as Priority,
+                      description: "",
+                      strongAnswer: "",
+                      weakAnswer: "",
+                    },
+                  ],
+                }
+              : d,
+          ),
+        })),
+
+      updateCompetency: (departmentId, id, patch) =>
+        set((s) => ({
+          departments: s.departments.map((d) =>
+            d.id === departmentId
+              ? {
+                  ...d,
+                  competencies: d.competencies.map((c: Competency) =>
+                    c.id === id ? { ...c, ...patch } : c,
+                  ),
+                }
+              : d,
+          ),
+        })),
+
+      removeCompetency: (departmentId, id) =>
+        set((s) => ({
+          departments: s.departments.map((d) =>
+            d.id === departmentId
+              ? { ...d, competencies: d.competencies.filter((c: Competency) => c.id !== id) }
+              : d,
           ),
         })),
 
@@ -138,31 +227,15 @@ export const useApp = create<AppState>()(
 
       clearRuns: () => set({ runs: [], selectedCandidateId: null }),
 
-      loadSampleData: () => {
-        const s = get();
-        const haveIds = new Set(s.departments.map((d) => d.id));
-        const departments = [
-          ...s.departments,
-          ...SAMPLE_DEPARTMENTS.filter((d) => !haveIds.has(d.id)),
-        ];
-        const haveCand = new Set(s.candidates.map((c) => c.id));
-        set({
-          departments,
-          candidates: [...s.candidates, ...SAMPLE_CANDIDATES.filter((c) => !haveCand.has(c.id))],
-          activeDepartmentId: s.activeDepartmentId || departments[0]?.id || "",
-        });
-      },
-
       resetAll: () => set({ ...initial }),
     }),
     {
       name: "hirescope:v1",
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
-      // v2 reseeds: the sample set went from one department to three, with a
-      // screened run each. Anything a visitor added under v1 is not worth
-      // migrating field by field, and the seeded runs are examples, not records
-      // of real judgments.
+      // v3 reseeds: criteria went from a flat pass/fail list to requirements plus
+      // scored competencies, so a v2 department cannot be migrated field by field
+      // into the new shape — its criteria carry no definitions to score against.
       migrate: () => ({ ...initial }),
       partialize: (s) => ({
         departments: s.departments,
@@ -177,8 +250,4 @@ export const useApp = create<AppState>()(
 /** Convenience selectors. */
 export function useActiveDepartment(): Department | undefined {
   return useApp((s) => s.departments.find((d) => d.id === s.activeDepartmentId));
-}
-
-export function useLatestRun(): ScreeningRun | undefined {
-  return useApp((s) => s.runs.find((r) => r.departmentId === s.activeDepartmentId));
 }

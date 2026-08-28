@@ -3,24 +3,27 @@ import type { DepartmentSpec } from "./build";
 /**
  * Three departments, ten resumes each. The point of the set is that the same
  * candidate pool would not produce the same room twice: each department's own
- * required criteria decide who is even eligible, and only then does the score
- * decide who sits down. Two of the strongest candidates in the set never make
- * a room, because a high score does not survive a missed requirement.
+ * requirements decide who is even eligible, and only then does the weighted
+ * competency score decide who sits down. Two of the strongest candidates in the
+ * set never make a room, because a high score does not survive a missed
+ * requirement.
+ *
+ * Competencies come from the imported role library rather than being written
+ * here, so the sample is held to the same standard a real department would use.
+ * The library has no product-design role, so that department borrows the product
+ * manager set — user insight, prioritisation, execution and measurement read
+ * across well enough, and the four general competencies are shared by every role.
  */
 export const SAMPLE_DEPARTMENTS: DepartmentSpec[] = [
   {
     id: "dept_backend",
     name: "Backend Engineer",
-    priority: [
+    requirements: [
       "3+ years of production backend experience",
       "Strong in at least one of Go, Java, Python, or Node.js",
       "Has designed or operated a relational database schema",
     ],
-    nice: [
-      "Kubernetes / container orchestration",
-      "Led a migration or major refactor",
-      "Open-source contributions",
-    ],
+    roleSlug: "development",
     candidates: [
       {
         name: "Han Jiwoo",
@@ -38,12 +41,16 @@ an open-source Go SQL migration tool.`,
           "Operates the service themselves — wrote the team's Helm conventions",
         ],
         concerns: ["Single-domain depth; no evidence of work outside payments"],
-        priority: [
+        requirements: [
           [true, "Six years, most recently four at a fintech on a live payments service."],
           [true, "Go throughout the payments rewrite, at production scale."],
           [true, "Designed the ledger schema in PostgreSQL and migrated it off MySQL."],
         ],
-        nice: [true, true, true],
+        tags: [
+          { label: "Kubernetes / container orchestration", status: "demonstrated" },
+          { label: "Led a migration or major refactor", status: "demonstrated" },
+          { label: "Open-source contributions", status: "demonstrated" },
+        ],
       },
       {
         name: "Priya Raghunathan",
@@ -59,12 +66,14 @@ but the platform team owns the cluster.`,
           "Redesigned the inventory schema in response to a concrete failure",
         ],
         concerns: ["Deploys to Kubernetes but has not operated a cluster"],
-        priority: [
+        requirements: [
           [true, "Five years, all on production services at a retail platform."],
           [true, "Java and Spring across the whole fulfilment service."],
           [true, "Rebuilt the inventory tables after the double-booking incident."],
         ],
-        nice: [false, true, false],
+        tags: [
+          { label: "Led a migration or major refactor", status: "demonstrated" },
+        ],
       },
       {
         name: "Marta Oyelaran",
@@ -83,12 +92,12 @@ the platform team. Speaks at the local Python meetup.`,
           "No container orchestration experience — deploys are handled elsewhere",
           "Pipeline work is narrower than full service ownership",
         ],
-        priority: [
+        requirements: [
           [true, "Four years across two production stacks."],
           [true, "Python and Django, then Node.js on the current pipeline."],
           [true, "Normalised the order schema; cites the address-duplication incident."],
         ],
-        nice: [false, false, false],
+        tags: [],
       },
       {
         name: "Tobias Lindqvist",
@@ -104,12 +113,14 @@ managed VMs.`,
           "Converted a batch settlement job to streaming",
         ],
         concerns: ["No cloud-native or container experience at all"],
-        priority: [
+        requirements: [
           [true, "Seven years on production banking systems."],
           [true, "Java throughout."],
           [true, "Oracle schema design is the core of the role described."],
         ],
-        nice: [false, true, false],
+        tags: [
+          { label: "Led a migration or major refactor", status: "demonstrated" },
+        ],
       },
       {
         name: "Chen Wei",
@@ -124,12 +135,15 @@ Kubernetes cluster. Has not owned a user-facing service.`,
           "Runs the staging Kubernetes cluster",
         ],
         concerns: ["Has never owned a user-facing service"],
-        priority: [
+        requirements: [
           [true, "Four years on the platform team."],
           [true, "Go and Python, both in production tooling."],
           [true, "Built and maintains the shared Postgres access layer."],
         ],
-        nice: [true, false, true],
+        tags: [
+          { label: "Kubernetes / container orchestration", status: "demonstrated" },
+          { label: "Open-source contributions", status: "demonstrated" },
+        ],
       },
       {
         name: "Amara Nwosu",
@@ -144,12 +158,14 @@ the booking logic out of the monolith last year.`,
           "Pulled booking logic out of the monolith",
         ],
         concerns: ["Only three years, all at one small company", "No scale evidence"],
-        priority: [
+        requirements: [
           [true, "Three years, which meets the bar exactly."],
           [true, "Node.js throughout."],
           [true, "Built the appointments Postgres schema from scratch."],
         ],
-        nice: [false, true, false],
+        tags: [
+          { label: "Led a migration or major refactor", status: "demonstrated" },
+        ],
       },
       {
         name: "Kenji Watanabe",
@@ -164,7 +180,7 @@ extraction of payouts into its own service. Has read Go but never shipped it.`,
           "Led a service extraction end to end",
         ],
         concerns: ["Ruby only — has not shipped any of the four required languages"],
-        priority: [
+        requirements: [
           [true, "Eight years, currently principal engineer."],
           [
             false,
@@ -172,7 +188,10 @@ extraction of payouts into its own service. Has read Go but never shipped it.`,
           ],
           [true, "Owns the seller payouts Postgres schema."],
         ],
-        nice: [false, true, false],
+        tags: [
+          { label: "Led a migration or major refactor", status: "demonstrated" },
+          { label: "Go", status: "claimed" },
+        ],
       },
       {
         name: "Rafael Duarte",
@@ -184,7 +203,7 @@ consumes their tables rather than modelling them.`,
           "Five years of Python in a data-adjacent role. The service work is real, but schema design has always belonged to another team.",
         strengths: ["Five years of production Python", "Comfortable across pipelines and services"],
         concerns: ["Has consumed schemas, never designed or operated one"],
-        priority: [
+        requirements: [
           [true, "Five years at an adtech firm."],
           [true, "Python across Airflow and FastAPI."],
           [
@@ -192,7 +211,9 @@ consumes their tables rather than modelling them.`,
             "Explicitly states the warehouse team owns schema design; no modelling work of their own is shown.",
           ],
         ],
-        nice: [false, false, false],
+        tags: [
+          { label: "Relational schema design", status: "claimed" },
+        ],
       },
       {
         name: "Devin Park",
@@ -203,12 +224,14 @@ and a small Express API backed by MongoDB. Very fast learner, strong references.
           "Ten months of experience at a two-person startup. Promising, but short of every experience bar this role sets.",
         strengths: ["Shipped a working product end to end despite minimal support"],
         concerns: ["Under a year of experience", "No relational database work at all"],
-        priority: [
+        requirements: [
           [false, "Ten months against a three-year bar."],
           [true, "Express means Node.js, shipped in production."],
           [false, "MongoDB only; no relational schema work shown."],
         ],
-        nice: [false, false, false],
+        tags: [
+          { label: "Relational databases", status: "contradicted" },
+        ],
       },
       {
         name: "Sofia Almeida",
@@ -220,7 +243,7 @@ the Postgres schema well from writing fixtures against it.`,
           "Two years in QA automation with early backend contributions. Real familiarity with the codebase, but not yet ownership of production work.",
         strengths: ["Deep familiarity with the service surface from testing it"],
         concerns: ["Two years, and mostly test-side", "Two endpoints is not production ownership"],
-        priority: [
+        requirements: [
           [false, "Two years, and the backend portion is a small share of that."],
           [true, "Python across the test harnesses and the two endpoints."],
           [
@@ -228,7 +251,7 @@ the Postgres schema well from writing fixtures against it.`,
             "Reads and writes fixtures against the schema, but has not designed or operated one.",
           ],
         ],
-        nice: [false, false, false],
+        tags: [],
       },
     ],
   },
@@ -236,12 +259,12 @@ the Postgres schema well from writing fixtures against it.`,
   {
     id: "dept_design",
     name: "Product Designer",
-    priority: [
+    requirements: [
       "Portfolio includes at least one shipped end-to-end product",
       "Works directly with engineers through implementation",
       "Can show research that changed a design decision",
     ],
-    nice: ["Motion or interaction design", "Owned a design system", "Writes clearly about the work"],
+    roleSlug: "product-manager",
     candidates: [
       {
         name: "Noor Haddad",
@@ -258,12 +281,15 @@ flow is stepped because of what they found. Owns the company's design system.`,
           "Owns the design system",
         ],
         concerns: [],
-        priority: [
+        requirements: [
           [true, "Merchant onboarding, research through launch."],
           [true, "Sat in the engineering standup for the duration of the build."],
           [true, "14 interviews killed the single-page concept; the stepped flow is the result."],
         ],
-        nice: [false, true, true],
+        tags: [
+          { label: "Owned a design system", status: "demonstrated" },
+          { label: "Writes clearly about the work", status: "demonstrated" },
+        ],
       },
       {
         name: "Yuna Seo",
@@ -279,12 +305,14 @@ churn in lapsed users, so shipped a forgiving version.`,
           "Diary study directly produced the forgiving streak model",
         ],
         concerns: ["Feature-level ownership rather than a whole product surface"],
-        priority: [
+        requirements: [
           [true, "Reading-streak feature, designed and shipped."],
           [true, "Paired with two engineers through implementation."],
           [true, "Diary study on lapsed users changed the streak rules."],
         ],
-        nice: [true, false, false],
+        tags: [
+          { label: "Motion or interaction design", status: "demonstrated" },
+        ],
       },
       {
         name: "Elias Brandt",
@@ -300,12 +328,15 @@ Writes the team's design rationale docs.`,
           "Usability testing caught and fixed a real comprehension failure",
         ],
         concerns: ["All B2B; no consumer-scale work"],
-        priority: [
+        requirements: [
           [true, "Analytics dashboard redesign, shipped to 400 customers."],
           [true, "Ran the staged rollout jointly with the frontend lead."],
           [true, "Date-range control was rebuilt on the strength of usability testing."],
         ],
-        nice: [false, true, true],
+        tags: [
+          { label: "Owned a design system", status: "demonstrated" },
+          { label: "Writes clearly about the work", status: "demonstrated" },
+        ],
       },
       {
         name: "Gabriel Okonkwo",
@@ -320,12 +351,14 @@ what he saw. Worked shoulder to shoulder with two mobile engineers.`,
           "Close working relationship with the mobile engineers",
         ],
         concerns: ["Only one product in the portfolio", "Four years is on the light side"],
-        priority: [
+        requirements: [
           [true, "Driver-facing app, start to finish."],
           [true, "Worked directly with two mobile engineers."],
           [true, "The ride-along week produced the shift-handover screen."],
         ],
-        nice: [true, false, false],
+        tags: [
+          { label: "Motion or interaction design", status: "demonstrated" },
+        ],
       },
       {
         name: "Ingrid Vasquez",
@@ -337,12 +370,14 @@ room-type taxonomy. Agency work means less long-term ownership after launch.`,
           "Five years of agency work with one genuinely shipped product and a card-sort study that reorganised its core taxonomy.",
         strengths: ["Stayed through implementation rather than handing off at launch"],
         concerns: ["Agency pattern — little post-launch ownership or iteration"],
-        priority: [
+        requirements: [
           [true, "Hotel booking product, shipped."],
           [true, "Two months of implementation support alongside the build team."],
           [true, "Card-sort study reorganised the room-type taxonomy."],
         ],
-        nice: [false, false, true],
+        tags: [
+          { label: "Writes clearly about the work", status: "demonstrated" },
+        ],
       },
       {
         name: "Theo Mensah",
@@ -355,12 +390,12 @@ two products in four years.`,
           "Four years in a regulated environment with a shipped claims flow and a moderated study behind one of its steps; output volume is low by circumstance.",
         strengths: ["Shipped inside a regulated constraint set", "Study changed the upload step"],
         concerns: ["Only two shipped products in four years"],
-        priority: [
+        requirements: [
           [true, "Claims submission flow, redesigned and shipped."],
           [true, "Worked with the engineering team throughout."],
           [true, "Moderated study changed the document-upload step."],
         ],
-        nice: [false, false, false],
+        tags: [],
       },
       {
         name: "Riya Kapoor",
@@ -373,7 +408,7 @@ she works from their summaries.`,
           "Six years with a strong visual craft and unusually close engineering collaboration, but the research half of the role has always belonged to somebody else.",
         strengths: ["Reviews implementation PRs — rare and useful", "Strong visual craft"],
         concerns: ["Has never run research herself"],
-        priority: [
+        requirements: [
           [true, "App visual refresh and two marketing sites, all shipped."],
           [true, "Reviews every implementation PR alongside the engineers."],
           [
@@ -381,7 +416,11 @@ she works from their summaries.`,
             "Works from another team's research summaries; no decision of her own is traced to research she ran.",
           ],
         ],
-        nice: [true, true, false],
+        tags: [
+          { label: "Motion or interaction design", status: "demonstrated" },
+          { label: "Owned a design system", status: "demonstrated" },
+          { label: "User research", status: "claimed" },
+        ],
       },
       {
         name: "Anaïs Perrot",
@@ -393,7 +432,7 @@ contributed screens to two products but has not owned one through to launch.`,
           "Five years of genuinely strong research practice, moving toward product design without yet having carried a product to launch.",
         strengths: ["Segmentation study reshaped a roadmap", "Rigorous synthesis practice"],
         concerns: ["No product owned end to end"],
-        priority: [
+        requirements: [
           [
             false,
             "Contributed screens to two products; states she has not owned one through to launch.",
@@ -401,7 +440,10 @@ contributed screens to two products but has not owned one through to launch.`,
           [true, "Worked alongside engineering on both contributions."],
           [true, "The segmentation study reshaped the roadmap — research changing decisions is her core strength."],
         ],
-        nice: [false, false, true],
+        tags: [
+          { label: "Writes clearly about the work", status: "demonstrated" },
+          { label: "Shipping end to end", status: "claimed" },
+        ],
       },
       {
         name: "Milo Fontaine",
@@ -413,7 +455,7 @@ next project. One shipped product, a small e-commerce site.`,
           "Three years of polished concept work with one shipped product, in a hand-off model that never reaches implementation.",
         strengths: ["Exceptional visual polish"],
         concerns: ["Hand-off model — no implementation involvement", "Little evidence of research"],
-        priority: [
+        requirements: [
           [true, "One shipped e-commerce site."],
           [
             false,
@@ -421,7 +463,10 @@ next project. One shipped product, a small e-commerce site.`,
           ],
           [false, "No research of any kind appears in the resume."],
         ],
-        nice: [true, false, false],
+        tags: [
+          { label: "Motion or interaction design", status: "demonstrated" },
+          { label: "Implementation collaboration", status: "contradicted" },
+        ],
       },
       {
         name: "Dae-ho Lim",
@@ -433,12 +478,12 @@ former leads.`,
           "Two years of junior work at a company that closed before shipping. The craft is developing; the evidence base is not there yet.",
         strengths: ["Thoughtful portfolio despite nothing reaching launch"],
         concerns: ["Nothing shipped", "Two years, all junior"],
-        priority: [
+        requirements: [
           [false, "The startup folded before launch; nothing in the portfolio shipped."],
           [false, "No implementation collaboration is described."],
           [false, "No research is described."],
         ],
-        nice: [false, false, false],
+        tags: [],
       },
     ],
   },
@@ -446,12 +491,12 @@ former leads.`,
   {
     id: "dept_data",
     name: "Data Analyst",
-    priority: [
+    requirements: [
       "2+ years turning data into decisions someone acted on",
       "Fluent in SQL against a production warehouse",
       "Has built and maintained a metric or dashboard others rely on",
     ],
-    nice: ["Python or R for analysis", "Experiment or A/B test design", "Presents well to non-analysts"],
+    roleSlug: "data-analyst",
     candidates: [
       {
         name: "Zainab Farouk",
@@ -468,12 +513,16 @@ the heavier cohort work. Runs the company's experiment review.`,
           "Runs the experiment review",
         ],
         concerns: [],
-        priority: [
+        requirements: [
           [true, "Five years, with the pricing change as a traceable decision."],
           [true, "Daily SQL against Snowflake."],
           [true, "Owns the retention dashboard the exec team reads weekly."],
         ],
-        nice: [true, true, true],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+          { label: "Experiment or A/B test design", status: "demonstrated" },
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+        ],
       },
       {
         name: "Meera Pillai",
@@ -488,12 +537,14 @@ Her analysis of cancelled trips changed how the incentive threshold is set.`,
           "Cancelled-trip analysis changed the incentive threshold",
         ],
         concerns: ["Single-domain; all marketplace work"],
-        priority: [
+        requirements: [
           [true, "Four years, with the incentive threshold change as the clearest example."],
           [true, "BigQuery daily."],
           [true, "Built and maintains the supply-health metric."],
         ],
-        nice: [true, false, false],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+        ],
       },
       {
         name: "Oscar Lindgren",
@@ -508,12 +559,14 @@ buying. Strong SQL (Redshift), Excel-heavy, limited Python.`,
           "Rebuilt the stock-cover metric after it misled a season",
         ],
         concerns: ["Limited Python; the workflow leans on Excel"],
-        priority: [
+        requirements: [
           [true, "Six years; the buying team plans against his report."],
           [true, "Strong SQL against Redshift."],
           [true, "Owns the trading report and the rebuilt stock-cover metric."],
         ],
-        nice: [false, false, true],
+        tags: [
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+        ],
       },
       {
         name: "Jonas Weber",
@@ -525,12 +578,15 @@ tests on the onboarding email sequence; one shipped.`,
           "Three years with a growth-team dashboard and two experiments, one of which shipped — solid, if not yet deep.",
         strengths: ["Activation dashboard is in weekly use", "Has designed and run experiments"],
         concerns: ["Warehouse is a Postgres replica rather than a real warehouse at scale"],
-        priority: [
+        requirements: [
           [true, "Three years; the shipped email sequence is the clearest decision."],
           [true, "SQL against Postgres replicas with dbt on top."],
           [true, "Built and maintains the activation funnel dashboard."],
         ],
-        nice: [true, true, false],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+          { label: "Experiment or A/B test design", status: "demonstrated" },
+        ],
       },
       {
         name: "Camila Rojas",
@@ -546,12 +602,15 @@ clinical leads.`,
           "Presents monthly to clinical leads",
         ],
         concerns: ["Domain is narrow and heavily regulated"],
-        priority: [
+        requirements: [
           [true, "Four years; the appointment blocking change is the traceable decision."],
           [true, "Snowflake daily."],
           [true, "Maintains the clinic-utilisation dashboard across eight sites."],
         ],
-        nice: [true, false, true],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+        ],
       },
       {
         name: "Ade Balogun",
@@ -563,12 +622,14 @@ cut manual review volume by a fifth.`,
           "Two years, but with real ownership of an operational dashboard and a threshold change that measurably cut review volume.",
         strengths: ["Threshold change cut manual review by a fifth"],
         concerns: ["Two years exactly — meets the bar without clearing it"],
-        priority: [
+        requirements: [
           [true, "Two years; the threshold change was acted on."],
           [true, "SQL against Snowflake."],
           [true, "Owns the fraud-review queue dashboard the ops team works from."],
         ],
-        nice: [false, true, false],
+        tags: [
+          { label: "Experiment or A/B test design", status: "demonstrated" },
+        ],
       },
       {
         name: "Hyun-woo Jang",
@@ -584,7 +645,7 @@ Several recommendations were adopted by clients.`,
           "Exceptional at presenting to non-analysts",
         ],
         concerns: ["Has never queried a warehouse directly"],
-        priority: [
+        requirements: [
           [true, "Five years, with adopted client recommendations."],
           [
             false,
@@ -592,7 +653,12 @@ Several recommendations were adopted by clients.`,
           ],
           [true, "Maintains recurring client reporting packs."],
         ],
-        nice: [true, true, true],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+          { label: "Experiment or A/B test design", status: "demonstrated" },
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+          { label: "Warehouse SQL", status: "contradicted" },
+        ],
       },
       {
         name: "Tarek Aziz",
@@ -604,12 +670,15 @@ Contributes to the finance dashboard but does not own it.`,
           "One year in analytics on top of a finance background: the SQL is genuinely strong, the analytics track record is not there yet.",
         strengths: ["Picked up warehouse SQL quickly and works in it daily"],
         concerns: ["One year in the role", "Contributes to a dashboard rather than owning one"],
-        priority: [
+        requirements: [
           [false, "One year as an analyst; the controller years were not analytics work."],
           [true, "Strong SQL against the Snowflake warehouse."],
           [false, "Contributes to the finance dashboard but explicitly does not own it."],
         ],
-        nice: [false, false, true],
+        tags: [
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+          { label: "Dashboard ownership", status: "claimed" },
+        ],
       },
       {
         name: "Lucia Moretti",
@@ -621,12 +690,15 @@ dashboard of her own; reports are ad hoc decks.`,
           "Three years of ad hoc campaign reporting. The work informs decisions, but nothing is owned or maintained.",
         strengths: ["Fast turnaround on ad hoc requests"],
         concerns: ["No owned metric or dashboard", "SQL is secondary to platform reporting tools"],
-        priority: [
+        requirements: [
           [true, "Three years; campaign reporting feeds budget decisions."],
           [true, "Some SQL against the warehouse, though platform tools do most of the work."],
           [false, "Reports are ad hoc decks; no maintained dashboard or metric."],
         ],
-        nice: [false, false, true],
+        tags: [
+          { label: "Presents well to non-analysts", status: "demonstrated" },
+          { label: "Metric ownership", status: "contradicted" },
+        ],
       },
       {
         name: "Bea Sørensen",
@@ -638,12 +710,15 @@ dashboards against a sandbox dataset.`,
           "Eight months in, with good methodology training and no production work yet.",
         strengths: ["Strong statistical grounding for the level"],
         concerns: ["Eight months, all supervised", "Work has been against sandbox data"],
-        priority: [
+        requirements: [
           [false, "Eight months against a two-year bar."],
           [false, "Practice queries against a sandbox dataset, not a production warehouse."],
           [false, "Practice dashboards only; nobody depends on them."],
         ],
-        nice: [true, false, false],
+        tags: [
+          { label: "Python or R for analysis", status: "demonstrated" },
+          { label: "Production analytics", status: "claimed" },
+        ],
       },
     ],
   },
