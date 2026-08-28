@@ -58,6 +58,7 @@ export default function ApplyPage() {
 
     const candidateId = registerApplicant({
       name,
+      email,
       departmentId: dept.id,
       resumeText: resume,
     });

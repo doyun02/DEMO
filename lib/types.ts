@@ -64,6 +64,8 @@ export type RoleTemplate = {
 export type Candidate = {
   id: string;
   name: string;
+  /** Optional, and only ever used to reply to them. Never shown to the scorer. */
+  email?: string;
   departmentId: string;
   resumeText: string;
   submittedAt: string;

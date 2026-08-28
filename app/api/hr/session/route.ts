@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { HR_COOKIE, configuredCredentials, sessionToken } from "@/lib/session/hr";
+import {
+  HR_COOKIE,
+  configuredCredentials,
+  hasConfiguredPasscode,
+  sessionToken,
+} from "@/lib/session/hr";
 
 export const runtime = "nodejs";
 
@@ -10,6 +15,18 @@ export async function POST(request: Request) {
     body = (await request.json()) as { id?: string; passcode?: string };
   } catch {
     return NextResponse.json({ ok: false, error: "Malformed request." }, { status: 400 });
+  }
+
+  if (process.env.NODE_ENV === "production" && !hasConfiguredPasscode()) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "No HR passcode is configured on this deployment, so the HR side is closed. "
+          + "Set HR_PASSCODE in the host's environment settings.",
+      },
+      { status: 503 },
+    );
   }
 
   const expected = configuredCredentials();

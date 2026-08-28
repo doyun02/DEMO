@@ -71,10 +71,13 @@ interviewer, and can read exactly how their resume was scored. A system that sco
 and shows them nothing is the thing this app argues against.
 
 **HR** — `/hr`, then the room and everything behind it. One shared id and passcode, checked
-on the server (`HR_ID` / `HR_PASSCODE`, default `hr` / `letmein`), held in an httpOnly
-cookie, enforced in `middleware.ts`. **This is access control for a demo, not
-authentication** — no accounts, no per-user identity, and anyone with the passcode is
-everyone. Real auth is an open item.
+on the server (`HR_ID` / `HR_PASSCODE`), held in an httpOnly cookie, enforced in
+`middleware.ts`. Locally it falls back to `hr` / `letmein`; **in production an unset
+`HR_PASSCODE` closes the HR side entirely** rather than leaving the published default in
+the door.
+
+**This is access control for a demo, not authentication** — no accounts, no per-user
+identity, and anyone with the passcode is everyone. Real auth is an open item.
 
 ### The consent handshake
 

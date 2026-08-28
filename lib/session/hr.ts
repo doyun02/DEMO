@@ -33,6 +33,18 @@ export function sessionToken(id: string, passcode: string): string {
   return (h >>> 0).toString(36);
 }
 
+/**
+ * Whether a passcode has actually been configured.
+ *
+ * The development default is published in this repo, so falling back to it on a
+ * deployed site would hand the HR side to anyone who read the README — along
+ * with an API key that bills per screening. In production an unset passcode
+ * closes the door instead of leaving a known one in it.
+ */
+export function hasConfiguredPasscode(): boolean {
+  return Boolean(process.env.HR_PASSCODE);
+}
+
 export function configuredCredentials(): { id: string; passcode: string } {
   return {
     id: process.env.HR_ID ?? "hr",

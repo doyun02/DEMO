@@ -84,6 +84,7 @@ type AppState = {
 
   registerApplicant: (input: {
     name: string;
+    email?: string;
     departmentId: string;
     resumeText: string;
   }) => string;
@@ -396,6 +397,7 @@ export const useApp = create<AppState>()(
         const candidate: Candidate = {
           id: newId("cand"),
           name: input.name.trim() || "Unnamed applicant",
+          email: input.email?.trim() || undefined,
           departmentId: input.departmentId,
           resumeText: input.resumeText,
           submittedAt: new Date().toISOString(),
