@@ -313,7 +313,7 @@ export const useApp = create<AppState>()(
             return {
               ...result,
               competencyResults,
-              score: computeOverall(competencyResults),
+              score: computeOverall(competencyResults, source.appliedStandard.weights),
               summary: outcome.summary,
               strengths: outcome.strengths,
               concerns: outcome.concerns,

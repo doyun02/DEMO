@@ -1,6 +1,7 @@
 import { hashString } from "../id";
 import { computeOverall, standardHash } from "../scoring";
 import { seatCandidates } from "../screening";
+import { DEFAULT_WEIGHTS } from "../types";
 import type {
   Candidate,
   Competency,
@@ -156,7 +157,13 @@ export function buildSample(specs: DepartmentSpec[], screenedAt: string): BuiltS
   for (const spec of specs) {
     const requirements = buildRequirements(spec.id, spec.requirements);
     const competencies = competenciesFor(spec.id, spec.roleSlug);
-    departments.push({ id: spec.id, name: spec.name, requirements, competencies });
+    departments.push({
+      id: spec.id,
+      name: spec.name,
+      requirements,
+      competencies,
+      weights: DEFAULT_WEIGHTS,
+    });
 
     const pending: PendingResult[] = [];
 
@@ -199,7 +206,7 @@ export function buildSample(specs: DepartmentSpec[], screenedAt: string): BuiltS
         }),
         competencyResults,
         tags: c.tags,
-        score: computeOverall(competencyResults),
+        score: computeOverall(competencyResults, DEFAULT_WEIGHTS),
         screenedAt,
       });
     });
@@ -213,7 +220,8 @@ export function buildSample(specs: DepartmentSpec[], screenedAt: string): BuiltS
       appliedStandard: {
         requirements,
         competencies,
-        hash: standardHash(requirements, competencies),
+        weights: DEFAULT_WEIGHTS,
+        hash: standardHash(requirements, competencies, DEFAULT_WEIGHTS),
       },
       sample: true,
     });

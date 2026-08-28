@@ -7,6 +7,7 @@ import { newId } from "@/lib/id";
 import { erroredEvaluation, seatCandidates } from "@/lib/screening";
 import { computeOverall, standardHash } from "@/lib/scoring";
 import { useActiveDepartment, useApp } from "@/lib/store";
+import { DEFAULT_WEIGHTS } from "@/lib/types";
 import type {
   AnalyzeRequestBody,
   AnalyzeResponseBody,
@@ -37,6 +38,7 @@ export function CandidatesPanel() {
   }
 
   const queue = candidates.filter((c) => c.departmentId === dept.id);
+  const weights = dept.weights ?? DEFAULT_WEIGHTS;
 
   async function screenOne(candidate: Candidate): Promise<PendingResult> {
     const body: AnalyzeRequestBody = {
@@ -66,12 +68,12 @@ export function CandidatesPanel() {
         ? {
             ...base,
             ...data.evaluation,
-            score: computeOverall(data.evaluation.competencyResults),
+            score: computeOverall(data.evaluation.competencyResults, weights),
           }
         : {
             ...base,
             ...data.evaluation,
-            score: computeOverall(data.evaluation.competencyResults),
+            score: computeOverall(data.evaluation.competencyResults, weights),
             errored: true,
             errorMessage: data.error,
           };
@@ -111,7 +113,8 @@ export function CandidatesPanel() {
       appliedStandard: {
         requirements: dept.requirements,
         competencies: dept.competencies,
-        hash: standardHash(dept.requirements, dept.competencies),
+        weights,
+        hash: standardHash(dept.requirements, dept.competencies, weights),
       },
     };
     addRun(run);

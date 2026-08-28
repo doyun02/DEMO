@@ -32,11 +32,25 @@ export type Competency = {
   weakAnswer: string;
 };
 
+/**
+ * What each priority is worth when the score is computed.
+ *
+ * Per department, because departments do not agree on this. A team where one
+ * competency genuinely carries the role wants a steep 5/2/1; a team hiring for
+ * all-round strength wants a flat 3/2/2. Hard-coding one curve for everybody
+ * quietly makes that decision on their behalf.
+ */
+export type PriorityWeights = Record<Priority, number>;
+
+export const DEFAULT_WEIGHTS: PriorityWeights = { high: 3, medium: 2, low: 1 };
+
 export type Department = {
   id: string;
   name: string;
   requirements: Requirement[];
   competencies: Competency[];
+  /** Absent on a department created before weights were configurable. */
+  weights?: PriorityWeights;
 };
 
 /** A role from the imported library, used as the starting point for a department. */
@@ -165,6 +179,8 @@ export type ScreeningRun = {
   appliedStandard: {
     requirements: Requirement[];
     competencies: Competency[];
+    /** The weights in force. A score cannot be checked by hand without them. */
+    weights: PriorityWeights;
     /** Content hash of the above. Two runs with the same hash applied the same standard. */
     hash: string;
   };

@@ -6,18 +6,23 @@ export const SCENE_W = 384;
 export const SCENE_H = 216;
 
 /** Fixed room palette — the dark tribunal set. */
+/**
+ * Morning. The room is lit by the window rather than by the desk lamp: walls
+ * lift toward a warm grey-blue, the floor warms up, and the deep near-black of
+ * the night version survives only in the shadows the light does not reach.
+ */
 export const ROOM = {
-  wallDark: "#111629",
-  wall: "#18203a",
-  wallLight: "#1e2846",
-  wallTrim: "#0c1020",
-  ceiling: "#0b0f1c",
-  floor: "#1a1526",
-  floorDark: "#120e1c",
-  rug: "#2a1a2e",
-  rugTrim: "#3a2440",
+  wallDark: "#2a3149",
+  wall: "#39415e",
+  wallLight: "#454e70",
+  wallTrim: "#232a40",
+  ceiling: "#1b2136",
+  floor: "#3a2f3e",
+  floorDark: "#2b222f",
+  rug: "#4a3348",
+  rugTrim: "#5c4059",
 
-  shadow: "#05070e",
+  shadow: "#161b2b",
 
   brass: "#f2b544",
   brassMid: "#c98a25",
@@ -31,10 +36,10 @@ export const ROOM = {
 
 /** Wood tones for the two desks. */
 export const WOOD = {
-  top: "#5a3f2a",
-  topLight: "#6f5036",
-  face: "#3d2a1c",
-  edge: "#251a12",
+  top: "#7a5738",
+  topLight: "#957048",
+  face: "#5a3f28",
+  edge: "#3a2718",
 } as const;
 
 export type CandidatePalette = {

@@ -126,8 +126,9 @@ function drawCeilingFixtures(ctx: Ctx, t: number, reduced: boolean) {
 
     // soft cone, cool
     const flick = reduced ? 1 : 0.94 + 0.06 * Math.sin(t / 700 + x);
+    // Weaker than at night: the room is not relying on these any more.
     const g = ctx.createLinearGradient(0, 13, 0, 120);
-    g.addColorStop(0, `rgba(180,200,245,${0.13 * flick})`);
+    g.addColorStop(0, `rgba(200,214,248,${0.07 * flick})`);
     g.addColorStop(1, "rgba(180,200,245,0)");
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -145,36 +146,86 @@ function drawWindow(ctx: Ctx, t: number) {
   const y = 20;
   const w = 68;
   const h = 48;
-  px(ctx, x - 3, y - 3, w + 6, h + 6, "#2a2036"); // frame
-  px(ctx, x - 2, y - 2, w + 4, h + 4, "#3a2c48");
 
-  // dusk gradient outside
+  px(ctx, x - 3, y - 3, w + 6, h + 6, "#4a4256"); // frame
+  px(ctx, x - 2, y - 2, w + 4, h + 4, "#5e5368");
+
+  // early morning: cool at the top of the sky, warm along the horizon
   const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, "#1a2450");
-  g.addColorStop(0.45, "#4a3560");
-  g.addColorStop(0.75, "#8a4a52");
-  g.addColorStop(1, "#c9793f");
+  g.addColorStop(0, "#6f9ad4");
+  g.addColorStop(0.4, "#a8c4e8");
+  g.addColorStop(0.72, "#f0d2a8");
+  g.addColorStop(1, "#f6b878");
   ctx.fillStyle = g;
   ctx.fillRect(x, y, w, h);
 
-  // a few stars in the upper band, and a skyline at the bottom
-  for (let i = 0; i < 9; i++) {
-    const sx = x + 4 + Math.floor(rnd(i * 3.1) * (w - 8));
-    const sy = y + 3 + Math.floor(rnd(i * 7.7) * 16);
-    const tw = 0.6 + 0.4 * Math.sin(t / 900 + i);
-    px(ctx, sx, sy, 1, 1, `rgba(255,240,210,${tw.toFixed(2)})`);
-  }
+  // the sun, low and hazy
+  const sunX = x + w - 20;
+  const sunY = y + h - 20;
+  const halo = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 26);
+  halo.addColorStop(0, "rgba(255,246,214,0.95)");
+  halo.addColorStop(0.4, "rgba(255,228,168,0.45)");
+  halo.addColorStop(1, "rgba(255,228,168,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(x, y, w, h);
+  px(ctx, sunX - 3, sunY - 3, 6, 6, "#fffaf0");
+  px(ctx, sunX - 4, sunY - 2, 8, 4, "#fff4d8");
+  px(ctx, sunX - 2, sunY - 4, 4, 8, "#fff4d8");
+
+  // skyline, catching the light on its upper edges
   for (let i = 0; i < 7; i++) {
     const bw = 6 + Math.floor(rnd(i * 11.3) * 10);
-    const bh = 6 + Math.floor(rnd(i * 5.9) * 14);
+    const bh = 5 + Math.floor(rnd(i * 5.9) * 13);
     const bx = x + i * 10;
-    px(ctx, bx, y + h - bh, bw, bh, "#241a30");
-    if (rnd(i * 2.7) > 0.5) px(ctx, bx + 2, y + h - bh + 2, 1, 1, "#f2b544");
+    px(ctx, bx, y + h - bh, bw, bh, "#8f7a92");
+    px(ctx, bx, y + h - bh, bw, 1, "#c4a89f");
+  }
+
+  // a bird or two, because a still sky reads as a painting
+  const drift = (t / 90) % (w + 40);
+  for (let i = 0; i < 2; i++) {
+    const bx = x + w + 12 - drift + i * 14;
+    const by = y + 10 + i * 5 + Math.round(Math.sin(t / 700 + i) * 2);
+    if (bx > x + 2 && bx < x + w - 4) {
+      px(ctx, bx, by, 2, 1, "#5a5570");
+      px(ctx, bx + 2, by - 1, 2, 1, "#5a5570");
+    }
   }
 
   // mullions
-  px(ctx, x + w / 2 - 1, y, 2, h, "#3a2c48");
-  px(ctx, x, y + h / 2 - 1, w, 2, "#3a2c48");
+  px(ctx, x + w / 2 - 1, y, 2, h, "#5e5368");
+  px(ctx, x, y + h / 2 - 1, w, 2, "#5e5368");
+}
+
+/**
+ * The shaft of light the window throws across the room. This is what makes the
+ * scene read as morning rather than as the night scene with a brighter window —
+ * a lit window in a dark room is a lamp, not a time of day.
+ */
+function drawSunShaft(ctx: Ctx, t: number, reduced: boolean) {
+  const drift = reduced ? 0 : Math.sin(t / 4200) * 3;
+
+  ctx.save();
+  const g = ctx.createLinearGradient(292, 30, 150, SCENE_H);
+  g.addColorStop(0, "rgba(255,240,205,0.30)");
+  g.addColorStop(0.45, "rgba(255,236,196,0.13)");
+  g.addColorStop(1, "rgba(255,232,190,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(246 + drift, 22);
+  ctx.lineTo(312 + drift, 22);
+  ctx.lineTo(214 + drift, SCENE_H);
+  ctx.lineTo(38 + drift, SCENE_H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // a bright patch where the shaft lands on the bench
+  const pool = ctx.createRadialGradient(206, ROW_DESK_Y + 8, 6, 206, ROW_DESK_Y + 8, 96);
+  pool.addColorStop(0, "rgba(255,238,198,0.24)");
+  pool.addColorStop(1, "rgba(255,238,198,0)");
+  ctx.fillStyle = pool;
+  ctx.fillRect(90, ROW_DESK_Y - 30, 240, 90);
 }
 
 /**
@@ -496,9 +547,9 @@ function drawHRDesk(ctx: Ctx, t: number, reduced: boolean) {
 function drawLampLight(ctx: Ctx, t: number, reduced: boolean) {
   const flick = reduced ? 1 : 0.96 + 0.04 * Math.sin(t / 320) + 0.02 * Math.sin(t / 91);
   const g = ctx.createRadialGradient(322, 154, 6, 322, 154, 190);
-  g.addColorStop(0, `rgba(255,222,150,${(0.46 * flick).toFixed(3)})`);
-  g.addColorStop(0.35, `rgba(250,196,96,${(0.22 * flick).toFixed(3)})`);
-  g.addColorStop(0.7, `rgba(242,181,68,${(0.09 * flick).toFixed(3)})`);
+  g.addColorStop(0, `rgba(255,226,164,${(0.30 * flick).toFixed(3)})`);
+  g.addColorStop(0.35, `rgba(250,204,120,${(0.13 * flick).toFixed(3)})`);
+  g.addColorStop(0.7, `rgba(242,190,96,${(0.05 * flick).toFixed(3)})`);
   g.addColorStop(1, "rgba(242,181,68,0)");
   ctx.fillStyle = g;
   ctx.fillRect(110, 92, 274, SCENE_H - 92);
@@ -506,8 +557,8 @@ function drawLampLight(ctx: Ctx, t: number, reduced: boolean) {
   // the beam itself — wide and soft, so it never reads as a drawn line
   ctx.save();
   const bg = ctx.createLinearGradient(325, 152, 250, 216);
-  bg.addColorStop(0, `rgba(255,226,166,${(0.20 * flick).toFixed(3)})`);
-  bg.addColorStop(0.6, `rgba(255,214,130,${(0.07 * flick).toFixed(3)})`);
+  bg.addColorStop(0, `rgba(255,230,180,${(0.11 * flick).toFixed(3)})`);
+  bg.addColorStop(0.6, `rgba(255,222,150,${(0.04 * flick).toFixed(3)})`);
   bg.addColorStop(1, "rgba(255,214,130,0)");
   ctx.fillStyle = bg;
   ctx.beginPath();
@@ -524,10 +575,12 @@ function drawLampLight(ctx: Ctx, t: number, reduced: boolean) {
 
 function drawDust(ctx: Ctx, t: number) {
   // motes only live inside the light — the warm pool and the two cool cones
+  // Motes live in the sun shaft first — that is the classic morning tell — with
+  // a few left in the lamp pool and under the ceiling fixtures.
   const zones: Array<[number, number, number, number, string]> = [
-    [210, 120, 160, 96, "rgba(255,226,170,"],
-    [60, 30, 90, 100, "rgba(200,216,250,"],
-    [252, 30, 90, 100, "rgba(200,216,250,"],
+    [80, 26, 210, 170, "rgba(255,244,214,"],
+    [230, 130, 130, 80, "rgba(255,232,180,"],
+    [40, 30, 80, 90, "rgba(226,236,255,"],
   ];
   zones.forEach(([zx, zy, zw, zh, rgb], z) => {
     for (let i = 0; i < 16; i++) {
@@ -570,11 +623,35 @@ function drawSpotlight(ctx: Ctx, index: number) {
   ctx.restore();
 }
 
+/**
+ * Ambient fill.
+ *
+ * Morning light is not just a shaft — it bounces. Everything in the room sits a
+ * stop or two brighter than it did at night, cooler in the upper half where the
+ * sky reaches and warmer down near the floor where the light has bounced off the
+ * wood. Without this the scene reads as dusk with a bright window in it.
+ */
+function drawMorningFill(ctx: Ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, SCENE_H);
+  g.addColorStop(0, "rgba(150,180,230,0.16)");
+  g.addColorStop(0.5, "rgba(190,196,224,0.12)");
+  g.addColorStop(1, "rgba(232,196,150,0.10)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+
+  // the window wall is closest to the source
+  const side = ctx.createLinearGradient(SCENE_W, 0, 120, 0);
+  side.addColorStop(0, "rgba(255,238,200,0.13)");
+  side.addColorStop(1, "rgba(255,238,200,0)");
+  ctx.fillStyle = side;
+  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+}
+
 function drawVignette(ctx: Ctx) {
   const g = ctx.createRadialGradient(SCENE_W / 2, SCENE_H / 2, 80, SCENE_W / 2, SCENE_H / 2, 260);
-  g.addColorStop(0, "rgba(4,5,10,0)");
-  g.addColorStop(0.7, "rgba(4,5,10,0.28)");
-  g.addColorStop(1, "rgba(4,5,10,0.68)");
+  g.addColorStop(0, "rgba(14,16,28,0)");
+  g.addColorStop(0.7, "rgba(14,16,28,0.14)");
+  g.addColorStop(1, "rgba(14,16,28,0.42)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SCENE_W, SCENE_H);
   // hard pixel border
@@ -598,10 +675,12 @@ export function drawScene(ctx: Ctx, s: SceneState) {
   drawFilingCabinets(ctx);
   drawDoor(ctx, s.doorOpenness);
   drawAITerminal(ctx, t, s.aiBusy, s.reducedMotion);
+  drawSunShaft(ctx, t, s.reducedMotion);
   drawCandidateRow(ctx, s);
   drawHRDesk(ctx, t, s.reducedMotion);
   drawHRBack(ctx, 192, SCENE_H, HR_PALETTE, s.reducedMotion ? 0 : Math.floor((t / 1300) % 2));
   drawLampLight(ctx, t, s.reducedMotion);
+  drawMorningFill(ctx);
   if (!s.reducedMotion) drawDust(ctx, t);
   if (s.selectedIndex !== null && s.seats[s.selectedIndex]) drawSpotlight(ctx, s.selectedIndex);
   drawVignette(ctx);
